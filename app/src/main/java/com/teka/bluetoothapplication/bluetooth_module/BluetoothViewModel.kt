@@ -3,21 +3,26 @@ package com.teka.bluetoothapplication.bluetooth_module
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
 import android.content.Context
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
 
 import timber.log.Timber
+import javax.inject.Inject
 
-const val BT_TAG = "BT_TAG"
+const val BT_VM_TAG = "BT_VM_TAG"
 
 
-
-class BluetoothViewModel(
-    private val bluetoothAdapter: BluetoothAdapter,
+@HiltViewModel
+class BluetoothViewModel @Inject constructor(
     private val applicationContext: Context,
 ) : ViewModel() {
+
+    val bluetoothManager = applicationContext.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+    private val bluetoothAdapter =  bluetoothManager.adapter
 
     private val _discoveredDevices = MutableLiveData<List<BluetoothDevice>>(emptyList())
     val discoveredDevices: LiveData<List<BluetoothDevice>> get() = _discoveredDevices
@@ -65,7 +70,7 @@ class BluetoothViewModel(
             bluetoothAdapter.cancelDiscovery()
         }
         bluetoothAdapter.startDiscovery()
-        Timber.tag(BT_TAG).i("discovery started")
+        Timber.tag(BT_VM_TAG).i("discovery started")
     }
 
     fun selectDevice(device: BluetoothDevice) {
