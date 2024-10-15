@@ -1,4 +1,4 @@
-package com.teka.bluetoothapplication
+package com.teka.bluetoothapplication.bluetooth_module
 
 import android.bluetooth.BluetoothDevice
 
