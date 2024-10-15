@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.content.Context
+import android.widget.Toast
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -11,7 +12,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.teka.bluetoothapplication.BluetoothDeviceModel
 import com.teka.bluetoothapplication.DataStoreRepository
+import com.teka.bluetoothapplication.BluetoothUIState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -29,7 +33,28 @@ class BluetoothViewModel @Inject constructor(
 
     private val btManager: BtManager = BtManager(applicationContext)
     private val bluetoothAdapter =  btManager.bluetoothAdapter
+    val scaleData: StateFlow<String> = btManager.scaleData
 
+
+    private val _uiState = MutableStateFlow(BluetoothUIState())
+    val uiState: StateFlow<BluetoothUIState> = _uiState
+
+    init {
+        observeConnectedDeviceFromDataStore()
+    }
+
+    private fun observeConnectedDeviceFromDataStore() {
+        viewModelScope.launch {
+            dataStoreRepository.getConnectedBtDevice.collectLatest { device ->
+                _uiState.value = _uiState.value.copy(connectedDevice = device)
+            }
+
+            scaleData.collect { scaleData ->
+                Timber.tag(BT_VM_TAG).i(scaleData)
+                _uiState.value = _uiState.value.copy(scaleData = scaleData)
+            }
+        }
+    }
 
     private val _discoveredDevices = MutableLiveData<List<BluetoothDevice>>(emptyList())
     val discoveredDevices: LiveData<List<BluetoothDevice>> get() = _discoveredDevices
@@ -50,22 +75,30 @@ class BluetoothViewModel @Inject constructor(
 
 
 
-    // Expose the LiveData (or StateFlow) to the UI
-    val btScaleData: LiveData<String> = btManager.scaleData
-
-
     fun startBluetoothConnection() {
         viewModelScope.launch {
             dataStoreRepository.getConnectedBtDevice.collectLatest { device ->
+                Timber.tag(BT_VM_TAG).i("device: $device")
                 if (device != null) {
                     val deviceName = device.name
                     val deviceAddress = device.address
                     Timber.tag(BT_VM_TAG).i("Device Name: $deviceName, Device Address: $deviceAddress")
-                    btManager.startReadingFromScale(device)
+                    try {
+                        btManager.startReadingFromScale(device)
+                    }catch (e: Exception){
+                        Timber.tag(BT_VM_TAG).i("BT connection failed: ${e.localizedMessage}")
+                    }
                 } else {
-                    Timber.tag(BT_VM_TAG).i("No connected Bluetooth device found.")
+                    Toast.makeText(applicationContext, "No Device Connected", Toast.LENGTH_SHORT).show()
+                    Timber.tag(BT_VM_TAG).i("No connected Bluetooth device found in datastore.")
                 }
             }
+        }
+    }
+
+    fun saveConnectedBtDevice(btDeviceModel: BluetoothDeviceModel) {
+        viewModelScope.launch {
+            dataStoreRepository.saveConnectedBtDevice(btDeviceModel)
         }
     }
 

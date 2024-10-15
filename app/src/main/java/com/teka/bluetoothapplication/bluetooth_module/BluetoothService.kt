@@ -14,6 +14,9 @@ import com.teka.bluetoothapplication.BluetoothDeviceModel
 import com.teka.bluetoothapplication.MainActivity
 import com.teka.bluetoothapplication.R
 import com.teka.bluetoothapplication.SA_TAG
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 class BluetoothService : Service() {
@@ -74,8 +77,17 @@ class BluetoothService : Service() {
                 BluetoothDeviceModel::class.java
             )
         }
-        bluetoothDevice?.let { btManager.startReadingFromScale(it) }
-        return START_STICKY // Ensure the service keeps running
+
+        if (bluetoothDevice == null) {
+            Timber.tag(SA_TAG).e("Bluetooth device is null in onStartCommand")
+        } else {
+            Timber.tag(SA_TAG).i("Bluetooth device received: ${bluetoothDevice?.name}")
+            // Launching the Bluetooth operation in a background coroutine
+            CoroutineScope(Dispatchers.IO).launch {
+                bluetoothDevice?.let { btManager.startReadingFromScale(it) }
+            }
+        }
+        return START_STICKY // Ensuring the service keeps running
     }
 
     override fun onBind(intent: Intent?): IBinder {

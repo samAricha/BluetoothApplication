@@ -1,21 +1,15 @@
 package com.teka.bluetoothapplication
 
-import android.bluetooth.BluetoothDevice
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
-import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.constraintlayout.widget.Group
 import androidx.core.content.ContextCompat
 import androidx.core.os.BundleCompat
 import androidx.lifecycle.Observer
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.teka.bluetoothapplication.bluetooth_module.BluetoothService
 import com.teka.bluetoothapplication.bluetooth_module.BluetoothViewModel
 import com.teka.bluetoothapplication.databinding.ActivityScaleBinding
@@ -36,6 +30,7 @@ class ScaleActivity : AppCompatActivity(){
     private lateinit var deviceInfoTextView: TextView
     private lateinit var quantityTxtView: TextView
     private lateinit var connectButton: Button
+    private lateinit var readBtDeviceBtn: Button
     private lateinit var submitButton: Button
     private lateinit var changeButton: Button
     private lateinit var nextCanButton: Button
@@ -43,10 +38,6 @@ class ScaleActivity : AppCompatActivity(){
     private lateinit var scaleGroupRadioButtonGroup: RadioGroup
 
     private var bluetoothDevice: BluetoothDeviceModel? = null
-
-
-
-
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,6 +50,7 @@ class ScaleActivity : AppCompatActivity(){
         deviceInfoTextView = binding.deviceInfoText
         quantityTxtView = binding.quantityTxtView
         connectButton = binding.connectButton
+        readBtDeviceBtn = binding.readBtDeviceBtn
         submitButton = binding.submit
         changeButton = binding.change
         nextCanButton = binding.nextCan
@@ -75,20 +67,35 @@ class ScaleActivity : AppCompatActivity(){
         )
         Timber.tag(SA_TAG).i("BT2: ${ bluetoothDevice?.name }")
 
-
-        // Observe Bluetooth scale data
-        btViewModel.btScaleData.observe(this, Observer { data ->
-//            textView.text = data // Display data from scale on the screen/
-            quantityTxtView.text = data
-            Timber.tag(SA_TAG).i("BT3: $data")
-        })
-
         // Display device information
         val deviceDetails = String.format("${bluetoothDevice?.name} (${bluetoothDevice?.address})")
         deviceInfoTextView.text = deviceDetails
 
         setUpScreenViews()
         startBluetoothService()
+        observeUIState()
+    }
+
+    private fun observeUIState() {
+        safeCollectFlow(btViewModel.uiState) { state ->
+            state.connectedDevice?.let { device ->
+                Timber.tag(SA_TAG).i("connectedDevice1 $device")
+                // Update UI with connected device information
+//                myButton.isEnabled = true
+//                myButton.text = "Disconnect ${device.name}"
+//                showToast("Connected to ${device.name}")
+            } ?: run {
+                Timber.tag(SA_TAG).i("connectedDevice2 runFunction")
+                // Update UI for no connected device
+//                myButton.isEnabled = false
+//                myButton.text = "No Device Connected"
+            }
+
+            quantityTxtView.text = state.scaleData
+
+
+            // Handle other state updates
+        }
     }
 
 
@@ -111,6 +118,12 @@ class ScaleActivity : AppCompatActivity(){
         }
 
         connectButton.setOnClickListener {
+            Timber.tag(SA_TAG).i("connect btn clicked. Device: $bluetoothDevice")
+            bluetoothDevice?.let { it1 -> btViewModel.saveConnectedBtDevice(it1) }
+        }
+
+        readBtDeviceBtn.setOnClickListener {
+            Timber.tag(SA_TAG).i("read btn clicked.")
             btViewModel.startBluetoothConnection()
         }
 
@@ -166,6 +179,7 @@ class ScaleActivity : AppCompatActivity(){
     private fun stopBluetoothService() {
         val intent = Intent(this, BluetoothService::class.java)
         stopService(intent)
+        btViewModel.stopBluetoothConnection()
     }
 
 }
