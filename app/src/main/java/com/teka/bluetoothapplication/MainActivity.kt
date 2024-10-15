@@ -12,23 +12,29 @@ import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.teka.bluetoothapplication.bluetooth_module.BluetoothViewModel
 import com.teka.bluetoothapplication.databinding.ActivityMainBinding
 import com.teka.bluetoothapplication.permissions_module.MY_TAG
 import com.teka.bluetoothapplication.permissions_module.PermissionLaunchersDto
 import com.teka.bluetoothapplication.permissions_module.PermissionManager
 import com.teka.bluetoothapplication.permissions_module.PermissionUtils
 import com.teka.bluetoothapplication.permissions_module.requiredPermissionsInitialClient
+import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
 
     private lateinit var mBluetoothAdapter: BluetoothAdapter
     private lateinit var binding: ActivityMainBinding
+    private val btViewModel: BluetoothViewModel by viewModels()
+
 
     private lateinit var multiplePermissionLauncher: ActivityResultLauncher<Array<String>>
     private lateinit var singlePermissionLauncher: ActivityResultLauncher<String>
@@ -40,7 +46,6 @@ class MainActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
     private lateinit var permissionLaunchersDto: PermissionLaunchersDto
 
     private lateinit var deviceAdapter: DeviceAdapter
-    private lateinit var recyclerView: RecyclerView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,6 +59,7 @@ class MainActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
         }
         deviceAdapter = DeviceAdapter(this, listener = this)
         setupRecyclerView()
+
         setupPermissionLaunchers()
 //        permissionLaunchersDto = PermissionManager.setupPermissionLaunchers(this)
         requestPermissions()
@@ -71,7 +77,10 @@ class MainActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
         binding.button1.setOnClickListener { enableBluetooth() }
         binding.button2.setOnClickListener { makeDiscoverable() }
         binding.button3.setOnClickListener { disableBluetooth() }
-        binding.button4.setOnClickListener { startScanningBluetoothDevices() }
+        binding.button4.setOnClickListener {
+//            startScanningBluetoothDevices()
+            getListOfPairedDevices()
+        }
         binding.button5.setOnClickListener {
             multiplePermissionLauncher.launch(
                 arrayOf(
@@ -220,6 +229,13 @@ class MainActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
         ).show()
     }
 
+    private fun getListOfPairedDevices(){
+        val pairedDevices: MutableList<BluetoothDeviceModel>? = btViewModel.getListOfPairedBluetoothDevices()
+        if (pairedDevices != null) {
+            deviceAdapter.addDeviceList(pairedDevices)
+        }
+    }
+
     private fun startScanningBluetoothDevices() {
         PermissionUtils.requestPermissionAndExecuteAction(
             onExecutionPermissionLauncher,
@@ -258,6 +274,13 @@ class MainActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
 
     override fun onDeviceClicked(device: BluetoothDeviceModel) {
         Toast.makeText(this, "Clicked: ${device.name ?: "Unknown"}", Toast.LENGTH_SHORT).show()
+
+        // Create an intent to start ScaleActivity
+        val intent = Intent(this, ScaleActivity::class.java)
+        // Put the BluetoothDeviceModel into the intent
+        intent.putExtra("bluetoothDevice", device)
+        // Start ScaleActivity
+        startActivity(intent)
     }
 
 

@@ -9,7 +9,7 @@ import android.content.Intent
 import android.content.IntentFilter
 
 
-class BluetoothReceiver(
+class BtBroadcastReceiver(
     private val listener: BluetoothListener
 ) : BroadcastReceiver() {
 
@@ -34,8 +34,8 @@ class BluetoothReceiver(
     }
 
     companion object {
-        fun register(context: Context, listener: BluetoothListener): BluetoothReceiver {
-            val receiver = BluetoothReceiver(listener)
+        fun register(context: Context, listener: BluetoothListener): BtBroadcastReceiver {
+            val receiver = BtBroadcastReceiver(listener)
             val filter = IntentFilter().apply {
                 addAction(BluetoothDevice.ACTION_FOUND)
                 addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
@@ -45,7 +45,7 @@ class BluetoothReceiver(
             return receiver
         }
 
-        fun unregister(context: Context, receiver: BluetoothReceiver) {
+        fun unregister(context: Context, receiver: BtBroadcastReceiver) {
             context.unregisterReceiver(receiver)
         }
     }

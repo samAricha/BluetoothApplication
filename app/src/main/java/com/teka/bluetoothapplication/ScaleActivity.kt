@@ -2,14 +2,22 @@ package com.teka.bluetoothapplication
 
 import android.bluetooth.BluetoothDevice
 import android.os.Bundle
+import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.os.BundleCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.teka.bluetoothapplication.bluetooth_module.BluetoothViewModel
 import com.teka.bluetoothapplication.databinding.ActivityScaleBinding
 import dagger.hilt.android.AndroidEntryPoint
+import timber.log.Timber
+
+
+const val SA_TAG = "SA_TAG"
+
 
 @AndroidEntryPoint
 class ScaleActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
@@ -18,7 +26,8 @@ class ScaleActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
     private val btViewModel: BluetoothViewModel by viewModels()
 
     private lateinit var deviceAdapter: DeviceAdapter
-    private lateinit var recyclerView: RecyclerView
+    private lateinit var connectButton: Button
+    private lateinit var deviceInfoTextView: TextView
 
 
 
@@ -27,9 +36,34 @@ class ScaleActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
         super.onCreate(savedInstanceState)
         binding = ActivityScaleBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
+        // Retrieve the BluetoothDeviceModel from the intent
+        val bluetoothDevice: BluetoothDeviceModel? = intent.getParcelableExtra("bluetoothDevice")
+        Timber.tag(SA_TAG).i("BT1: ${ bluetoothDevice?.name }")
+
+
+        // Retrieve the BluetoothDeviceModel using BundleCompat
+        val bluetoothDevice2: BluetoothDeviceModel? = BundleCompat.getParcelable(
+            intent.extras ?: Bundle(),
+            "bluetoothDevice",
+            BluetoothDeviceModel::class.java
+        )
+        Timber.tag(SA_TAG).i("BT2: ${ bluetoothDevice2?.name }")
+
+        deviceInfoTextView = binding.deviceInfoText
+        connectButton = binding.connectButton
+
+
+        // Display device information
+        val deviceDetails = String.format("${bluetoothDevice2?.name} (${bluetoothDevice2?.address})")
+        deviceInfoTextView.text = deviceDetails
+
+        connectButton.setOnClickListener {
+            Toast.makeText(this, "Connecting to $deviceDetails", Toast.LENGTH_SHORT).show()
+        }
+
 
         deviceAdapter = DeviceAdapter(this, listener = this)
         setupRecyclerView()

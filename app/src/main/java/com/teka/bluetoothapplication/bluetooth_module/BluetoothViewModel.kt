@@ -5,9 +5,12 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.Context
+import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.teka.bluetoothapplication.BluetoothDeviceModel
+import com.teka.bluetoothapplication.permissions_module.MY_TAG
 import dagger.hilt.android.lifecycle.HiltViewModel
 
 import timber.log.Timber
@@ -19,13 +22,16 @@ const val BT_VM_TAG = "BT_VM_TAG"
 @HiltViewModel
 class BluetoothViewModel @Inject constructor(
     private val applicationContext: Context,
-) : ViewModel() {
+) : ViewModel(), BluetoothListener {
 
     val bluetoothManager = applicationContext.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val bluetoothAdapter =  bluetoothManager.adapter
 
     private val _discoveredDevices = MutableLiveData<List<BluetoothDevice>>(emptyList())
     val discoveredDevices: LiveData<List<BluetoothDevice>> get() = _discoveredDevices
+
+    private val _pairedDevices = MutableLiveData<List<BluetoothDevice>>(emptyList())
+    val pairedDevices: LiveData<List<BluetoothDevice>> get() = _pairedDevices
 
 
     private val _scanningForDevices = MutableLiveData(false)
@@ -77,10 +83,7 @@ class BluetoothViewModel @Inject constructor(
         _selectedDevice.value = device
     }
 
-    /**
-     * Connect to the selected device and start a server socket connection
-     * and then listen to data from connected socket
-     */
+
     @SuppressLint("MissingPermission")
     fun startBluetoothService() {
         changeStateOfConnectivity(StatesOfConnection.CLIENT_STARTED)
@@ -91,21 +94,24 @@ class BluetoothViewModel @Inject constructor(
     }
 
     @SuppressLint("MissingPermission")
-    fun getListOfPairedBluetoothDevices(): MutableList<String>? {
+    fun getListOfPairedBluetoothDevices(): MutableList<BluetoothDeviceModel>? {
         val list = mutableListOf<String>()
 
-        var mPairedDevices: Set<BluetoothDevice> = mutableSetOf()
+        var setOfPairairedDevices: Set<BluetoothDevice> = mutableSetOf()
+        var pairedDevices:  MutableList<BluetoothDeviceModel> = mutableStateListOf()
+        setOfPairairedDevices = bluetoothAdapter.bondedDevices ?: return null
 
-        mPairedDevices = bluetoothAdapter.bondedDevices ?: return null
 
         if (bluetoothAdapter.isEnabled) {
-            // put it's one to the adapter
-            for (pairedDevice in mPairedDevices)
+            for (pairedDevice in setOfPairairedDevices) {
                 list.add(pairedDevice.name + "\t" + pairedDevice.address)
+                val btDeviceModel = BluetoothDeviceModel(name = pairedDevice.name, address =  pairedDevice.address)
+                pairedDevices.add(btDeviceModel)
+            }
         }
 
-        Timber.tag("MAVM::getListOfPairedBluetoothDevices").i("paired bt devices: $list")
-        return list
+        Timber.tag("$BT_VM_TAG::getListOfPairedBluetoothDevices").i("paired bt devices: $list")
+        return pairedDevices
     }
 
 
@@ -148,6 +154,19 @@ class BluetoothViewModel @Inject constructor(
         val bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
         return bluetoothAdapter?.isEnabled == true
     }
+
+    override fun onDeviceFound(device: BluetoothDevice) {
+        Timber.tag(BT_VM_TAG).i("device found: $device")
+    }
+
+    override fun onDiscoveryFinished() {
+        Timber.tag(BT_VM_TAG).i("DISCOVERY FINISHED")
+    }
+
+    override fun onBluetoothDisabled() {
+        Timber.tag(BT_VM_TAG).i("BT DISABLED")
+    }
+
 
 }
 

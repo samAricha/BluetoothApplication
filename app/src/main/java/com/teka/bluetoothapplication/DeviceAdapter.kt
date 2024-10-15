@@ -24,6 +24,10 @@ class DeviceAdapter(
         devices.add(device)
         notifyItemInserted(devices.size - 1)
     }
+    fun addDeviceList(deviceList: List<BluetoothDeviceModel>) {
+        devices.addAll(deviceList)
+        notifyDataSetChanged()
+    }
 
     // Add a device at a specific index or replace an existing one by its address
     @SuppressLint("MissingPermission")
