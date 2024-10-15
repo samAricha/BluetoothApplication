@@ -75,4 +75,8 @@ dependencies {
     implementation ("androidx.activity:activity-ktx:1.9.2")
     implementation ("androidx.fragment:fragment-ktx:1.8.4")
 
+    implementation("org.greenrobot:eventbus:3.3.1")
+
+    // DataStore Preferences
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 }

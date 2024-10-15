@@ -3,15 +3,17 @@ package com.teka.bluetoothapplication.bluetooth_module
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothManager
 import android.content.Context
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.teka.bluetoothapplication.BluetoothDeviceModel
-import com.teka.bluetoothapplication.permissions_module.MY_TAG
+import com.teka.bluetoothapplication.DataStoreRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 import timber.log.Timber
 import javax.inject.Inject
@@ -22,10 +24,12 @@ const val BT_VM_TAG = "BT_VM_TAG"
 @HiltViewModel
 class BluetoothViewModel @Inject constructor(
     private val applicationContext: Context,
+    private val dataStoreRepository: DataStoreRepository,
 ) : ViewModel(), BluetoothListener {
 
-    val bluetoothManager = applicationContext.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-    private val bluetoothAdapter =  bluetoothManager.adapter
+    private val btManager: BtManager = BtManager(applicationContext)
+    private val bluetoothAdapter =  btManager.bluetoothAdapter
+
 
     private val _discoveredDevices = MutableLiveData<List<BluetoothDevice>>(emptyList())
     val discoveredDevices: LiveData<List<BluetoothDevice>> get() = _discoveredDevices
@@ -41,20 +45,33 @@ class BluetoothViewModel @Inject constructor(
     val selectedDevice: LiveData<BluetoothDevice?> get() = _selectedDevice
 
 
-    private val _displayedText = MutableLiveData<String>()
-    val displayedText: LiveData<String> get() = _displayedText
-
-    private val _buttonText = MutableLiveData<String>()
-    val buttonText: LiveData<String> get() = _buttonText
-
-    private val _image = MutableLiveData<Int>()
-    val image: LiveData<Int> get() = _image
-
     private val _connectionState = MutableLiveData<StatesOfConnection>()
     val connectionState: LiveData<StatesOfConnection> get() = _connectionState
 
-    private val _buttonAction = MutableLiveData<(() -> Unit)?>()
-    val buttonAction: LiveData<(() -> Unit)?> get() = _buttonAction
+
+
+    // Expose the LiveData (or StateFlow) to the UI
+    val btScaleData: LiveData<String> = btManager.scaleData
+
+
+    fun startBluetoothConnection() {
+        viewModelScope.launch {
+            dataStoreRepository.getConnectedBtDevice.collectLatest { device ->
+                if (device != null) {
+                    val deviceName = device.name
+                    val deviceAddress = device.address
+                    Timber.tag(BT_VM_TAG).i("Device Name: $deviceName, Device Address: $deviceAddress")
+                    btManager.startReadingFromScale(device)
+                } else {
+                    Timber.tag(BT_VM_TAG).i("No connected Bluetooth device found.")
+                }
+            }
+        }
+    }
+
+    fun stopBluetoothConnection() {
+        btManager.stopReadingFromScale()
+    }
 
 
     fun addDiscoveredDevice(device: BluetoothDevice) {
@@ -85,15 +102,6 @@ class BluetoothViewModel @Inject constructor(
 
 
     @SuppressLint("MissingPermission")
-    fun startBluetoothService() {
-        changeStateOfConnectivity(StatesOfConnection.CLIENT_STARTED)
-        bluetoothAdapter.cancelDiscovery()
-        _selectedDevice.value?.let {
-            ConnectThread(it, this).start()
-        }
-    }
-
-    @SuppressLint("MissingPermission")
     fun getListOfPairedBluetoothDevices(): MutableList<BluetoothDeviceModel>? {
         val list = mutableListOf<String>()
 
@@ -114,40 +122,6 @@ class BluetoothViewModel @Inject constructor(
         return pairedDevices
     }
 
-
-
-    @SuppressLint("MissingPermission")
-    fun changeStateOfConnectivity(
-        newState: StatesOfConnection,
-        dataReceived: String? = null
-    ) {
-        _connectionState.value = newState
-        when (newState) {
-            StatesOfConnection.CLIENT_STARTED -> {
-                _displayedText.value =
-                    "Listening for data from the device: ${_selectedDevice.value?.name}"
-                _buttonText.value = ""
-                _image.value = 0
-            }
-
-            StatesOfConnection.RESPONSE_RECEIVED -> {
-                when (dataReceived) {
-
-                    else -> {
-                        _displayedText.value = "Not correct response message: $dataReceived"
-                    }
-                }
-                _buttonText.value = ""
-            }
-
-            StatesOfConnection.ERROR -> {
-                _buttonText.value = "Restart server?"
-                _buttonAction.value = { startBluetoothService() }
-                _displayedText.value = "An error occurred: $dataReceived"
-                _image.value = 0
-            }
-        }
-    }
 
 
     fun isBluetoothEnabled(): Boolean {

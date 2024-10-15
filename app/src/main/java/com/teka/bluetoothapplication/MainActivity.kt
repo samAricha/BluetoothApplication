@@ -98,13 +98,13 @@ class MainActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
 
     // Add mock Bluetooth devices to the adapter
     private fun addMockDevices() {
-        val mockDevice1 = BluetoothDeviceModel("Device 1", "00:11:22:33:44:55")
-        val mockDevice2 = BluetoothDeviceModel("Device 2", "AA:BB:CC:DD:EE:FF")
-        val mockDevice3 = BluetoothDeviceModel("Device 3", "11:22:33:44:55:66")
+        val mockDevice1 = BluetoothDeviceModel("Mock Device 1", "00:11:22:33:44:55")
+//        val mockDevice2 = BluetoothDeviceModel("Device 2", "AA:BB:CC:DD:EE:FF")
+//        val mockDevice3 = BluetoothDeviceModel("Device 3", "11:22:33:44:55:66")
 
         deviceAdapter.addDevice(mockDevice1)
-        deviceAdapter.addDevice(mockDevice2)
-        deviceAdapter.addDevice(mockDevice3)
+//        deviceAdapter.addDevice(mockDevice2)
+//        deviceAdapter.addDevice(mockDevice3)
     }
 
 

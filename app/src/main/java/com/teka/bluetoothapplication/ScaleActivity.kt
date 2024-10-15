@@ -1,15 +1,22 @@
 package com.teka.bluetoothapplication
 
 import android.bluetooth.BluetoothDevice
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
+import android.widget.RadioButton
+import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.constraintlayout.widget.Group
+import androidx.core.content.ContextCompat
 import androidx.core.os.BundleCompat
+import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.teka.bluetoothapplication.bluetooth_module.BluetoothService
 import com.teka.bluetoothapplication.bluetooth_module.BluetoothViewModel
 import com.teka.bluetoothapplication.databinding.ActivityScaleBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -20,14 +27,24 @@ const val SA_TAG = "SA_TAG"
 
 
 @AndroidEntryPoint
-class ScaleActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
+class ScaleActivity : AppCompatActivity(){
 
     private lateinit var binding: ActivityScaleBinding
     private val btViewModel: BluetoothViewModel by viewModels()
 
-    private lateinit var deviceAdapter: DeviceAdapter
-    private lateinit var connectButton: Button
+
     private lateinit var deviceInfoTextView: TextView
+    private lateinit var quantityTxtView: TextView
+    private lateinit var connectButton: Button
+    private lateinit var submitButton: Button
+    private lateinit var changeButton: Button
+    private lateinit var nextCanButton: Button
+    private lateinit var submitTestButton: Button
+    private lateinit var scaleGroupRadioButtonGroup: RadioGroup
+
+    private var bluetoothDevice: BluetoothDeviceModel? = null
+
+
 
 
 
@@ -39,80 +56,73 @@ class ScaleActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
-        // Retrieve the BluetoothDeviceModel from the intent
-        val bluetoothDevice: BluetoothDeviceModel? = intent.getParcelableExtra("bluetoothDevice")
-        Timber.tag(SA_TAG).i("BT1: ${ bluetoothDevice?.name }")
+        deviceInfoTextView = binding.deviceInfoText
+        quantityTxtView = binding.quantityTxtView
+        connectButton = binding.connectButton
+        submitButton = binding.submit
+        changeButton = binding.change
+        nextCanButton = binding.nextCan
+        submitTestButton = binding.submitTest
+        scaleGroupRadioButtonGroup = binding.scaleGroup
+
 
 
         // Retrieve the BluetoothDeviceModel using BundleCompat
-        val bluetoothDevice2: BluetoothDeviceModel? = BundleCompat.getParcelable(
+        bluetoothDevice = BundleCompat.getParcelable(
             intent.extras ?: Bundle(),
             "bluetoothDevice",
             BluetoothDeviceModel::class.java
         )
-        Timber.tag(SA_TAG).i("BT2: ${ bluetoothDevice2?.name }")
+        Timber.tag(SA_TAG).i("BT2: ${ bluetoothDevice?.name }")
 
-        deviceInfoTextView = binding.deviceInfoText
-        connectButton = binding.connectButton
 
+        // Observe Bluetooth scale data
+        btViewModel.btScaleData.observe(this, Observer { data ->
+//            textView.text = data // Display data from scale on the screen/
+            quantityTxtView.text = data
+            Timber.tag(SA_TAG).i("BT3: $data")
+        })
 
         // Display device information
-        val deviceDetails = String.format("${bluetoothDevice2?.name} (${bluetoothDevice2?.address})")
+        val deviceDetails = String.format("${bluetoothDevice?.name} (${bluetoothDevice?.address})")
         deviceInfoTextView.text = deviceDetails
 
+        setUpScreenViews()
+        startBluetoothService()
+    }
+
+
+    fun setUpScreenViews(){
+
+        submitButton.setOnClickListener {
+            submitData()
+        }
+
+        changeButton.setOnClickListener {
+            changeScale()
+        }
+
+        nextCanButton.setOnClickListener {
+            nextLot()
+        }
+
+        submitTestButton.setOnClickListener {
+            submitTestData()
+        }
+
         connectButton.setOnClickListener {
-            Toast.makeText(this, "Connecting to $deviceDetails", Toast.LENGTH_SHORT).show()
+            btViewModel.startBluetoothConnection()
         }
 
 
-        deviceAdapter = DeviceAdapter(this, listener = this)
-        setupRecyclerView()
-
-
-        binding.scaleGroup.setOnCheckedChangeListener { _, checkedId ->
+        scaleGroupRadioButtonGroup.setOnCheckedChangeListener { _, checkedId ->
             when (checkedId) {
                 R.id.isPlatform -> handlePlatformScale()
                 R.id.isBridge -> handleWeighBridgeScale()
             }
         }
-
-        binding.submit.setOnClickListener {
-            submitData()
-        }
-
-        binding.change.setOnClickListener {
-            changeScale()
-        }
-
-        binding.nextCan.setOnClickListener {
-            nextLot()
-        }
-
-        binding.submitTest.setOnClickListener {
-            submitTestData()
-        }
-
-        setupOtherViews()
-        // Add mock Bluetooth devices for testing
-        addMockDevices()
     }
 
-    // Add mock Bluetooth devices to the adapter
-    private fun addMockDevices() {
-        val mockDevice1 = BluetoothDeviceModel("Device 1", "00:11:22:33:44:55")
-        val mockDevice2 = BluetoothDeviceModel("Device 2", "AA:BB:CC:DD:EE:FF")
-        val mockDevice3 = BluetoothDeviceModel("Device 3", "11:22:33:44:55:66")
-
-        deviceAdapter.addDevice(mockDevice1)
-        deviceAdapter.addDevice(mockDevice2)
-        deviceAdapter.addDevice(mockDevice3)
-    }
-
-
-    private fun setupRecyclerView() {
-        binding.recycler.layoutManager = LinearLayoutManager(this)
-         binding.recycler.adapter = deviceAdapter
-    }
 
     private fun handlePlatformScale() {
         // Logic when Platform scale is selected
@@ -139,12 +149,23 @@ class ScaleActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
         // Logic to handle the test data submission
     }
 
-    private fun setupOtherViews() {
-        // Initialize the progress bar, text views, or any other view-related setup
+
+
+    private fun startBluetoothService() {
+        val intent = Intent(this, BluetoothService::class.java)
+        intent.putExtra("bluetoothDevice", bluetoothDevice)
+        ContextCompat.startForegroundService(this, intent) // Start foreground service
     }
 
-    override fun onDeviceClicked(device: BluetoothDeviceModel) {
-        Toast.makeText(this, "Clicked: ${device.name ?: "Unknown"}", Toast.LENGTH_SHORT).show()
+    override fun onDestroy() {
+        super.onDestroy()
+        // Optionally stop Bluetooth service if needed
+        stopBluetoothService()
+    }
+
+    private fun stopBluetoothService() {
+        val intent = Intent(this, BluetoothService::class.java)
+        stopService(intent)
     }
 
 }

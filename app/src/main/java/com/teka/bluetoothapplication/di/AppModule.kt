@@ -1,6 +1,7 @@
 package com.teka.bluetoothapplication.di
 
 import android.content.Context
+import com.teka.bluetoothapplication.DataStoreRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -20,5 +21,11 @@ object AppModule {
     ): Context {
         return appContext
     }
+
+    @Provides
+    @Singleton
+    fun provideDataStoreRepository(
+        @ApplicationContext context: Context
+    ) = DataStoreRepository(context = context)
 
 }

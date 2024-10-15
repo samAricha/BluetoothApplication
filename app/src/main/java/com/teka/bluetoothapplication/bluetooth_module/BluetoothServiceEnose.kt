@@ -9,7 +9,7 @@ import java.io.IOException
 
 const val BT_CONNECTIVITY_TAG = "BT_CONNECTIVITY_TAG"
 
-class BluetoothService(
+class BluetoothConnectivityService(
     private val socket: BluetoothSocket,
     private val viewModel: BluetoothViewModel
 ) : Thread() {
@@ -29,10 +29,7 @@ class BluetoothService(
             }
             // Send the obtained bytes to the UI activity.
             val text = String(buffer)
-            viewModel.changeStateOfConnectivity(
-                newState = StatesOfConnection.RESPONSE_RECEIVED,
-                dataReceived = text
-            )
+
         }
     }
 }
@@ -58,14 +55,10 @@ class ConnectThread(
                 Timber.tag(BT_CONNECTIVITY_TAG).i("connection success")
             } catch (e: Exception) {
                 Timber.tag(BT_CONNECTIVITY_TAG).i("connection was not successful")
-                viewModel.changeStateOfConnectivity(
-                    StatesOfConnection.ERROR,
-                    "Error on connectivity: $e"
-                )
             }
             //The connection attempt succeeded.
             //Perform work associated with the connection in a separate thread
-            BluetoothService(socket, viewModel).start()
+            BluetoothConnectivityService(socket, viewModel).start()
         }
     }
 
