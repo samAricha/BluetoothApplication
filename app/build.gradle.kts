@@ -1,6 +1,9 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
+    id("kotlin-kapt")
+    id ("dagger.hilt.android.plugin")
+    id ("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
@@ -53,4 +56,30 @@ dependencies {
 
     // Timber
     implementation("com.jakewharton.timber:timber:5.0.1")
+
+    // ViewModel
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.6")
+    // LiveData
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.6")
+    // (Optional) Lifecycle components for easier integration with lifecycle-aware components
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
+
+
+    // Dagger - Hilt
+    implementation("com.google.dagger:hilt-android:2.51.1")
+    kapt("com.google.dagger:hilt-android-compiler:2.51.1")
+    implementation("androidx.hilt:hilt-work:1.2.0")
+    kapt("androidx.hilt:hilt-compiler:1.2.0")
+    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+    // adding activity ktx dependency for using view model in activity
+    implementation ("androidx.activity:activity-ktx:1.9.2")
+    implementation ("androidx.fragment:fragment-ktx:1.8.4")
+
+    implementation("org.greenrobot:eventbus:3.3.1")
+
+    // DataStore Preferences
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    implementation("androidx.core:core-splashscreen:1.0.1")
+
 }

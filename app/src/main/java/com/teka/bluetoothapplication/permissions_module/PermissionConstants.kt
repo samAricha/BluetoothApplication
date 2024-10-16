@@ -7,7 +7,6 @@ import java.util.*
 //For a RFComm connection to exist we use a hardcoded UUID
 val myUuid: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
 //tag used for logging purposes
-const val PERMISSIONS_TAG = "AvolinePermissions"
 const val MY_TAG = "MY_TAG"
 
 

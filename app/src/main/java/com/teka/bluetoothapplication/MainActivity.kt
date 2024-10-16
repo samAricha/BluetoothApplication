@@ -5,28 +5,37 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.teka.bluetoothapplication.bluetooth_module.BtDeviceModel
+import com.teka.bluetoothapplication.bluetooth_module.BluetoothViewModel
 import com.teka.bluetoothapplication.databinding.ActivityMainBinding
 import com.teka.bluetoothapplication.permissions_module.MY_TAG
 import com.teka.bluetoothapplication.permissions_module.PermissionLaunchersDto
-import com.teka.bluetoothapplication.permissions_module.PermissionManager
 import com.teka.bluetoothapplication.permissions_module.PermissionUtils
 import com.teka.bluetoothapplication.permissions_module.requiredPermissionsInitialClient
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
-class MainActivity : AppCompatActivity() {
+@AndroidEntryPoint
+class MainActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
 
     private lateinit var mBluetoothAdapter: BluetoothAdapter
     private lateinit var binding: ActivityMainBinding
+    private val btViewModel: BluetoothViewModel by viewModels()
+
 
     private lateinit var multiplePermissionLauncher: ActivityResultLauncher<Array<String>>
     private lateinit var singlePermissionLauncher: ActivityResultLauncher<String>
@@ -37,8 +46,10 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var permissionLaunchersDto: PermissionLaunchersDto
 
+    private lateinit var deviceAdapter: DeviceAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -48,6 +59,10 @@ class MainActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+
+        deviceAdapter = DeviceAdapter(context = this, listener = this)
+        setupRecyclerView()
+
         setupPermissionLaunchers()
 //        permissionLaunchersDto = PermissionManager.setupPermissionLaunchers(this)
         requestPermissions()
@@ -62,21 +77,43 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Set up buttons and listeners using ViewBinding
-        binding.button1.setOnClickListener { enableBluetooth() }
-        binding.button2.setOnClickListener { makeDiscoverable() }
-        binding.button3.setOnClickListener { disableBluetooth() }
-        binding.button4.setOnClickListener { startScanningBluetoothDevices() }
-        binding.button5.setOnClickListener {
+        binding.turnOnBtn.setOnClickListener { enableBluetooth() }
+        binding.discoverableBtn.setOnClickListener { makeDiscoverable() }
+        binding.turnOffBtn.setOnClickListener { disableBluetooth() }
+        binding.scanBtn.setOnClickListener {
+//            startScanningBluetoothDevices()
+            getListOfPairedDevices()
+        }
+        binding.permissionBtn.setOnClickListener {
             multiplePermissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.ACCESS_COARSE_LOCATION
                 )
             )
         }
-        binding.button6.setOnClickListener {
+        binding.toScaleActivityBtn.setOnClickListener {
             val intent:Intent = Intent(this@MainActivity,ScaleActivity::class.java)
             startActivity(intent)
         }
+
+        addMockDevices()
+    }
+
+    // Add mock Bluetooth devices to the adapter
+    private fun addMockDevices() {
+        val mockDevice1 = BtDeviceModel("Mock Device 1", "00:11:22:33:44:55")
+//        val mockDevice2 = BluetoothDeviceModel("Device 2", "AA:BB:CC:DD:EE:FF")
+//        val mockDevice3 = BluetoothDeviceModel("Device 3", "11:22:33:44:55:66")
+
+        deviceAdapter.addDevice(mockDevice1)
+//        deviceAdapter.addDevice(mockDevice2)
+//        deviceAdapter.addDevice(mockDevice3)
+    }
+
+
+    private fun setupRecyclerView() {
+        binding.recycler.layoutManager = LinearLayoutManager(this)
+        binding.recycler.adapter = deviceAdapter
     }
 
 
@@ -93,21 +130,6 @@ class MainActivity : AppCompatActivity() {
         activity.startActivity(intent)
     }
 
-    private fun requestAppPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // Request multiple permissions for Android 12+
-            multiplePermissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.BLUETOOTH_SCAN,
-                    Manifest.permission.BLUETOOTH_CONNECT,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            )
-        } else {
-            // Request only the coarse location permission
-            locationPermissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
-        }
-    }
 
     // Function to make the device discoverable
     @SuppressLint("MissingPermission")
@@ -210,6 +232,14 @@ class MainActivity : AppCompatActivity() {
         ).show()
     }
 
+    private fun getListOfPairedDevices(){
+        deviceAdapter.clearDevices()
+        val pairedDevices: MutableList<BtDeviceModel>? = btViewModel.getListOfPairedBluetoothDevices()
+        if (pairedDevices != null) {
+            deviceAdapter.addDeviceList(pairedDevices)
+        }
+    }
+
     private fun startScanningBluetoothDevices() {
         PermissionUtils.requestPermissionAndExecuteAction(
             onExecutionPermissionLauncher,
@@ -244,6 +274,20 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    override fun onDeviceClicked(device: BtDeviceModel) {
+        Toast.makeText(this, "Clicked: ${device.name ?: "Unknown"}", Toast.LENGTH_SHORT).show()
+
+        lifecycleScope.launch {
+            btViewModel.saveConnectedBtDevice(device)
+            startScaleActivity()
+        }
+    }
+
+    private fun startScaleActivity() {
+        val intent = Intent(this, ScaleActivity::class.java)
+        startActivity(intent)
     }
 
 
