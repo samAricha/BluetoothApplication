@@ -41,6 +41,7 @@ class BluetoothViewModel @Inject constructor(
 
     init {
         observeConnectedDeviceFromDataStore()
+        observeScaleData()
     }
 
     private fun observeConnectedDeviceFromDataStore() {
@@ -48,9 +49,13 @@ class BluetoothViewModel @Inject constructor(
             dataStoreRepository.getConnectedBtDevice.collectLatest { device ->
                 _uiState.value = _uiState.value.copy(connectedDevice = device)
             }
+        }
+    }
 
-            scaleData.collect { scaleData ->
-                Timber.tag(BT_VM_TAG).i(scaleData)
+    private fun observeScaleData() {
+        viewModelScope.launch {
+            scaleData.collectLatest { scaleData ->
+                Timber.tag(BT_VM_TAG).i("collecting scale data: $scaleData")
                 _uiState.value = _uiState.value.copy(scaleData = scaleData)
             }
         }

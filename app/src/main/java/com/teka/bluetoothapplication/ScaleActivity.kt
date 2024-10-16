@@ -91,10 +91,11 @@ class ScaleActivity : AppCompatActivity(){
 //                myButton.text = "No Device Connected"
             }
 
-            quantityTxtView.text = state.scaleData
+            state.scaleData.let { weight ->
+                Timber.tag(SA_TAG).i("read weight: $weight")
+                quantityTxtView.text = weight
+            }
 
-
-            // Handle other state updates
         }
     }
 

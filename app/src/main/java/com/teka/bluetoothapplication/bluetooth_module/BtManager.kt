@@ -90,6 +90,7 @@ class BtManager(private val context: Context) {
                     if (cleanedData.isNotEmpty()) {
                         Timber.tag(BT_MNGR_TAG).i("Valid data: $cleanedData")
                         _scaleData.value = cleanedData
+                        Timber.tag(BT_MNGR_TAG).i("Scale data: ${scaleData.value}")
                     } else {
                         Timber.tag(BT_MNGR_TAG).i("No valid data received")
                     }
