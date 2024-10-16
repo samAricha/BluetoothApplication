@@ -3,14 +3,12 @@ package com.teka.bluetoothapplication.bluetooth_module
 import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
-import android.bluetooth.BluetoothDevice
 import android.content.Intent
 import android.os.Binder
 import android.os.Bundle
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.os.BundleCompat
-import com.teka.bluetoothapplication.BluetoothDeviceModel
 import com.teka.bluetoothapplication.MainActivity
 import com.teka.bluetoothapplication.R
 import com.teka.bluetoothapplication.SA_TAG
@@ -19,21 +17,21 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
-class BluetoothService : Service() {
+class BtService : Service() {
 
     companion object {
         const val CHANNEL_ID = "bluetooth_service_channel"
         const val CHANNEL_NAME = "Bluetooth Service"
     }
 
-    private var bluetoothDevice: BluetoothDeviceModel? = null
+    private var bluetoothDevice: BtDeviceModel? = null
     private lateinit var btManager: BtManager
 
     // Binder to bind the service with the activity if needed (for bound services)
     private val binder = LocalBinder()
 
     inner class LocalBinder : Binder() {
-        fun getService(): BluetoothService = this@BluetoothService
+        fun getService(): BtService = this@BtService
     }
 
     override fun onCreate() {
@@ -74,7 +72,7 @@ class BluetoothService : Service() {
             bluetoothDevice = BundleCompat.getParcelable(
                 intent.extras ?: Bundle(),
                 "bluetoothDevice",
-                BluetoothDeviceModel::class.java
+                BtDeviceModel::class.java
             )
         }
 
@@ -95,7 +93,7 @@ class BluetoothService : Service() {
     }
 
     override fun onDestroy() {
-        btManager.stopReadingFromScale()
+        btManager.closeBtConnection()
         super.onDestroy()
     }
 }

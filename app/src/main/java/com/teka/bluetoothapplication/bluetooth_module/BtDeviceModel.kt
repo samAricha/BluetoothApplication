@@ -1,9 +1,9 @@
-package com.teka.bluetoothapplication
+package com.teka.bluetoothapplication.bluetooth_module
 
 import android.os.Parcel
 import android.os.Parcelable
 
-data class BluetoothDeviceModel(
+data class BtDeviceModel(
     val name: String?,
     val address: String
 ): Parcelable {
@@ -21,12 +21,12 @@ data class BluetoothDeviceModel(
         return 0
     }
 
-    companion object CREATOR : Parcelable.Creator<BluetoothDeviceModel> {
-        override fun createFromParcel(parcel: Parcel): BluetoothDeviceModel {
-            return BluetoothDeviceModel(parcel)
+    companion object CREATOR : Parcelable.Creator<BtDeviceModel> {
+        override fun createFromParcel(parcel: Parcel): BtDeviceModel {
+            return BtDeviceModel(parcel)
         }
 
-        override fun newArray(size: Int): Array<BluetoothDeviceModel?> {
+        override fun newArray(size: Int): Array<BtDeviceModel?> {
             return arrayOfNulls(size)
         }
     }

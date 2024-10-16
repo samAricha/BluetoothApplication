@@ -5,7 +5,6 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
@@ -19,12 +18,11 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
+import com.teka.bluetoothapplication.bluetooth_module.BtDeviceModel
 import com.teka.bluetoothapplication.bluetooth_module.BluetoothViewModel
 import com.teka.bluetoothapplication.databinding.ActivityMainBinding
 import com.teka.bluetoothapplication.permissions_module.MY_TAG
 import com.teka.bluetoothapplication.permissions_module.PermissionLaunchersDto
-import com.teka.bluetoothapplication.permissions_module.PermissionManager
 import com.teka.bluetoothapplication.permissions_module.PermissionUtils
 import com.teka.bluetoothapplication.permissions_module.requiredPermissionsInitialClient
 import dagger.hilt.android.AndroidEntryPoint
@@ -103,7 +101,7 @@ class MainActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
 
     // Add mock Bluetooth devices to the adapter
     private fun addMockDevices() {
-        val mockDevice1 = BluetoothDeviceModel("Mock Device 1", "00:11:22:33:44:55")
+        val mockDevice1 = BtDeviceModel("Mock Device 1", "00:11:22:33:44:55")
 //        val mockDevice2 = BluetoothDeviceModel("Device 2", "AA:BB:CC:DD:EE:FF")
 //        val mockDevice3 = BluetoothDeviceModel("Device 3", "11:22:33:44:55:66")
 
@@ -236,7 +234,7 @@ class MainActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
 
     private fun getListOfPairedDevices(){
         deviceAdapter.clearDevices()
-        val pairedDevices: MutableList<BluetoothDeviceModel>? = btViewModel.getListOfPairedBluetoothDevices()
+        val pairedDevices: MutableList<BtDeviceModel>? = btViewModel.getListOfPairedBluetoothDevices()
         if (pairedDevices != null) {
             deviceAdapter.addDeviceList(pairedDevices)
         }
@@ -278,7 +276,7 @@ class MainActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
         }
     }
 
-    override fun onDeviceClicked(device: BluetoothDeviceModel) {
+    override fun onDeviceClicked(device: BtDeviceModel) {
         Toast.makeText(this, "Clicked: ${device.name ?: "Unknown"}", Toast.LENGTH_SHORT).show()
 
         lifecycleScope.launch {

@@ -10,9 +10,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.teka.bluetoothapplication.BluetoothDeviceModel
 import com.teka.bluetoothapplication.DataStoreRepository
-import com.teka.bluetoothapplication.BluetoothUIState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,10 +32,11 @@ class BluetoothViewModel @Inject constructor(
     private val btManager: BtManager = BtManager(applicationContext)
     private val bluetoothAdapter =  btManager.bluetoothAdapter
     val scaleData: StateFlow<String> = btManager.scaleData
+    val isReadingData: StateFlow<Boolean> = btManager.isReading
 
 
-    private val _uiState = MutableStateFlow(BluetoothUIState())
-    val uiState: StateFlow<BluetoothUIState> = _uiState
+    private val _uiState = MutableStateFlow(BtUIState())
+    val uiState: StateFlow<BtUIState> = _uiState
 
     val btDeviceConnectionState: StateFlow<Boolean> = btManager.connectionState
 
@@ -46,6 +45,7 @@ class BluetoothViewModel @Inject constructor(
         observeConnectedDeviceFromDataStore()
         observeScaleData()
         observeConnectionState()
+        observeReadingState()
     }
 
 
@@ -61,10 +61,6 @@ class BluetoothViewModel @Inject constructor(
 
     private val _selectedDevice = MutableLiveData<BluetoothDevice?>()
     val selectedDevice: LiveData<BluetoothDevice?> get() = _selectedDevice
-
-
-    private val _connectionState = MutableLiveData<StatesOfConnection>()
-    val connectionState: LiveData<StatesOfConnection> get() = _connectionState
 
 
 
@@ -88,8 +84,17 @@ class BluetoothViewModel @Inject constructor(
     private fun observeConnectionState() {
         viewModelScope.launch {
             btDeviceConnectionState.collectLatest { connectionState ->
-                Timber.tag(BT_VM_TAG).i("collecting connection state: $connectionState")
+                Timber.tag(BT_VM_TAG).i("connection state: $connectionState")
                 _uiState.value = _uiState.value.copy(connectionState = connectionState)
+            }
+        }
+    }
+
+    private fun observeReadingState() {
+        viewModelScope.launch {
+            isReadingData.collectLatest { readingState ->
+                Timber.tag(BT_VM_TAG).i("reading state: $readingState")
+                _uiState.value = _uiState.value.copy(readingState = readingState)
             }
         }
     }
@@ -118,13 +123,17 @@ class BluetoothViewModel @Inject constructor(
         }
     }
 
-    suspend fun saveConnectedBtDevice(btDeviceModel: BluetoothDeviceModel) {
+    suspend fun saveConnectedBtDevice(btDeviceModel: BtDeviceModel) {
             dataStoreRepository.saveConnectedBtDevice(btDeviceModel)
     }
 
     fun stopBluetoothConnection() {
-        btManager.stopReadingFromScale()
+        btManager.closeBtConnection()
         btManager.unregisterReceiver()
+    }
+
+    fun stopBtReading() {
+        btManager.stopReadingFromScale()
     }
 
 
@@ -156,18 +165,18 @@ class BluetoothViewModel @Inject constructor(
 
 
     @SuppressLint("MissingPermission")
-    fun getListOfPairedBluetoothDevices(): MutableList<BluetoothDeviceModel>? {
+    fun getListOfPairedBluetoothDevices(): MutableList<BtDeviceModel>? {
         val list = mutableListOf<String>()
 
         var setOfPairairedDevices: Set<BluetoothDevice> = mutableSetOf()
-        var pairedDevices:  MutableList<BluetoothDeviceModel> = mutableStateListOf()
+        var pairedDevices:  MutableList<BtDeviceModel> = mutableStateListOf()
         setOfPairairedDevices = bluetoothAdapter.bondedDevices ?: return null
 
 
         if (bluetoothAdapter.isEnabled) {
             for (pairedDevice in setOfPairairedDevices) {
                 list.add(pairedDevice.name + "\t" + pairedDevice.address)
-                val btDeviceModel = BluetoothDeviceModel(name = pairedDevice.name, address =  pairedDevice.address)
+                val btDeviceModel = BtDeviceModel(name = pairedDevice.name, address =  pairedDevice.address)
                 pairedDevices.add(btDeviceModel)
             }
         }

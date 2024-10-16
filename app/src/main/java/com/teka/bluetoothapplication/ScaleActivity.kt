@@ -1,17 +1,19 @@
 package com.teka.bluetoothapplication
 
 import android.content.Intent
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.view.View
 import android.widget.Button
+import android.widget.ProgressBar
 import android.widget.RadioGroup
 import android.widget.TextView
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.core.os.BundleCompat
-import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
-import com.teka.bluetoothapplication.bluetooth_module.BluetoothService
+import com.teka.bluetoothapplication.bluetooth_module.BtDeviceModel
+import com.teka.bluetoothapplication.bluetooth_module.BtService
 import com.teka.bluetoothapplication.bluetooth_module.BluetoothViewModel
 import com.teka.bluetoothapplication.databinding.ActivityScaleBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -37,8 +39,10 @@ class ScaleActivity : AppCompatActivity(){
     private lateinit var nextCanButton: Button
     private lateinit var submitTestButton: Button
     private lateinit var scaleGroupRadioButtonGroup: RadioGroup
+    private lateinit var loaderProgressBar: ProgressBar
 
-    private var bluetoothDevice: BluetoothDeviceModel? = null
+
+    private var bluetoothDevice: BtDeviceModel? = null
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,6 +60,8 @@ class ScaleActivity : AppCompatActivity(){
         nextCanButton = binding.nextCan
         submitTestButton = binding.submitTest
         scaleGroupRadioButtonGroup = binding.scaleGroup
+        loaderProgressBar = binding.loader
+
 
 
         Timber.tag(SA_TAG).i("BT2: ${ bluetoothDevice?.name }")
@@ -96,8 +102,23 @@ class ScaleActivity : AppCompatActivity(){
                 }else{
                     connectButton.isEnabled = true
                     connectButton.alpha = 1f
+                    connectButton.setTextColor(ContextCompat.getColor(this,R.color.white))
                     connectButton.setText("Connect")
                     connectButton.setBackgroundColor(ContextCompat.getColor(this@ScaleActivity, R.color.enabled_button_color))
+                }
+            }
+            state.readingState.let {
+                Timber.tag(SA_TAG).i("reading state: $it")
+
+                if(it == true){
+                    val drawable = ContextCompat.getDrawable(this, R.drawable.round)?.mutate() as GradientDrawable
+                    drawable.setColor(ContextCompat.getColor(this, R.color.brownMid))
+                    loaderProgressBar.visibility = View.VISIBLE
+                    quantityTxtView.background = drawable
+                }else{
+                    val drawable = ContextCompat.getDrawable(this, R.drawable.round)?.mutate() as GradientDrawable
+                    loaderProgressBar.visibility = View.GONE
+                    quantityTxtView.background = drawable
                 }
             }
 
@@ -105,10 +126,10 @@ class ScaleActivity : AppCompatActivity(){
     }
 
 
-    fun setUpScreenViews(){
+    private fun setUpScreenViews(){
 
         submitButton.setOnClickListener {
-            submitData()
+            btViewModel.stopBtReading()
         }
 
         changeButton.setOnClickListener {
@@ -170,7 +191,7 @@ class ScaleActivity : AppCompatActivity(){
 
 
     private fun startBluetoothService() {
-        val intent = Intent(this, BluetoothService::class.java)
+        val intent = Intent(this, BtService::class.java)
         intent.putExtra("bluetoothDevice", bluetoothDevice)
         ContextCompat.startForegroundService(this, intent) // Start foreground service
     }
@@ -181,7 +202,7 @@ class ScaleActivity : AppCompatActivity(){
     }
 
     private fun stopBluetoothService() {
-        val intent = Intent(this, BluetoothService::class.java)
+        val intent = Intent(this, BtService::class.java)
         stopService(intent)
         btViewModel.stopBluetoothConnection()
     }

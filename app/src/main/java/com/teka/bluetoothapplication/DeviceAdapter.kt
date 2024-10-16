@@ -1,34 +1,34 @@
 package com.teka.bluetoothapplication
 
 import android.annotation.SuppressLint
-import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.teka.bluetoothapplication.bluetooth_module.BtDeviceModel
 
 class DeviceAdapter(
     private val context: Context,
-    private val devices: MutableList<BluetoothDeviceModel> = mutableListOf(),
+    private val devices: MutableList<BtDeviceModel> = mutableListOf(),
     private val listener: DeviceListener
 ) : RecyclerView.Adapter<DeviceAdapter.DeviceHolder>() {
 
     private val inflater: LayoutInflater = LayoutInflater.from(context)
 
-    fun addDevice(device: BluetoothDeviceModel) {
+    fun addDevice(device: BtDeviceModel) {
         devices.add(device)
         notifyItemInserted(devices.size - 1)
     }
-    fun addDeviceList(deviceList: List<BluetoothDeviceModel>) {
+    fun addDeviceList(deviceList: List<BtDeviceModel>) {
         devices.addAll(deviceList)
         notifyDataSetChanged()
     }
 
     // Add a device at a specific index or replace an existing one by its address
     @SuppressLint("MissingPermission")
-    fun addDevice(index: Int, device: BluetoothDeviceModel) {
+    fun addDevice(index: Int, device: BtDeviceModel) {
         for (i in devices.indices) {
             val d = devices[i]
             if (d.address == device.address) {
@@ -78,6 +78,6 @@ class DeviceAdapter(
 
     // Interface for device click listener
     interface DeviceListener {
-        fun onDeviceClicked(device: BluetoothDeviceModel)
+        fun onDeviceClicked(device: BtDeviceModel)
     }
 }

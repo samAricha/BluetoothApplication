@@ -2,7 +2,7 @@ package com.teka.bluetoothapplication.bluetooth_module
 
 import android.bluetooth.BluetoothDevice
 
-interface BluetoothListener {
+interface BtListener {
     fun onDeviceFound(device: BluetoothDevice)
     fun onDiscoveryFinished()
     fun onBluetoothDisabled()

@@ -12,7 +12,7 @@ import timber.log.Timber
 const val BT_BR_TAG = "BT_BR_TAG"
 
 class BtBroadcastReceiver(
-    private val listener: BluetoothListener
+    private val listener: BtListener
 ) : BroadcastReceiver() {
 
     @SuppressLint("MissingPermission")
@@ -52,7 +52,7 @@ class BtBroadcastReceiver(
     }
 
     companion object {
-        fun register(context: Context, listener: BluetoothListener): BtBroadcastReceiver {
+        fun register(context: Context, listener: BtListener): BtBroadcastReceiver {
             val receiver = BtBroadcastReceiver(listener)
             val filter = IntentFilter().apply {
                 addAction(BluetoothDevice.ACTION_FOUND)

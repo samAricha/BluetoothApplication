@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.teka.bluetoothapplication.bluetooth_module.BtDeviceModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -25,7 +26,7 @@ class DataStoreRepository(context: Context) {
         val BT_DEVICE_ADDRESS = stringPreferencesKey(name = "bt_device_address")
     }
 
-    suspend fun saveConnectedBtDevice(btDeviceModel: BluetoothDeviceModel) {
+    suspend fun saveConnectedBtDevice(btDeviceModel: BtDeviceModel) {
         Timber.tag(DS_REPOSITORY_TAG).i("saveBtDevice: $btDeviceModel")
         primaryDataStore.edit { preferences ->
             preferences.remove(PreferencesKey.BT_DEVICE_NAME)
@@ -43,13 +44,13 @@ class DataStoreRepository(context: Context) {
         Timber.tag(DS_REPOSITORY_TAG).i("Confirmed saved BT Device: Name = $savedName, Address = $savedAddress")
     }
 
-    val getConnectedBtDevice: Flow<BluetoothDeviceModel?> = primaryDataStore.data.map { preferences ->
+    val getConnectedBtDevice: Flow<BtDeviceModel?> = primaryDataStore.data.map { preferences ->
         val btDeviceName = preferences[PreferencesKey.BT_DEVICE_NAME]
         val btDeviceAddress = preferences[PreferencesKey.BT_DEVICE_ADDRESS]
 
         // Return BluetoothDeviceModel only if both values are present
         if (btDeviceName != null && btDeviceAddress != null) {
-            BluetoothDeviceModel(name = btDeviceName, address = btDeviceAddress)
+            BtDeviceModel(name = btDeviceName, address = btDeviceAddress)
         } else {
             null
         }

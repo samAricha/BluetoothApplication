@@ -5,6 +5,7 @@
 
     <color name="colorPrimary">#36B46E</color>
     <color name="darkGray">#676767</color>
+    <color name="offWhite">#eeeeee</color>
 
     <color name="brownDark">#834413</color>
     <color name="brownMid">#F69448</color>

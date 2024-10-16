@@ -7,15 +7,13 @@ import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.content.IntentFilter
-import androidx.lifecycle.MutableLiveData
-import com.teka.bluetoothapplication.BluetoothDeviceModel
 import com.teka.bluetoothapplication.permissions_module.myUuid
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.IOException
@@ -29,10 +27,13 @@ class BtManager(private val context: Context) {
     val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     val bluetoothAdapter =  bluetoothManager.adapter
 
+    private var readingJob: Job? = null
 
     private val _scaleData: MutableStateFlow<String> = MutableStateFlow("0.0")
     val scaleData: StateFlow<String> = _scaleData
-    private var readingJob: Job? = null
+    private val _isReading: MutableStateFlow<Boolean> = MutableStateFlow<Boolean>(false)
+    val isReading: StateFlow<Boolean> = _isReading
+
     private var bluetoothSocket: BluetoothSocket? = null
 
 
@@ -46,7 +47,7 @@ class BtManager(private val context: Context) {
     }
 
     private fun registerReceiver() {
-        btBroadcastReceiver = BtBroadcastReceiver(object : BluetoothListener {
+        btBroadcastReceiver = BtBroadcastReceiver(object : BtListener {
             @SuppressLint("MissingPermission")
             override fun onDeviceFound(device: BluetoothDevice) {
                 Timber.tag(BT_MNGR_TAG).i("Device: ${device.name} found")
@@ -92,7 +93,7 @@ class BtManager(private val context: Context) {
 
 
     @SuppressLint("MissingPermission")
-    fun startReadingFromScale(btDevice: BluetoothDeviceModel) {
+    fun startReadingFromScale(btDevice: BtDeviceModel) {
         Timber.tag(BT_MNGR_TAG).i("start reading from scale")
         if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled) {
             Timber.tag(BT_MNGR_TAG).e("Bluetooth is not enabled or adapter is null")
@@ -112,13 +113,14 @@ class BtManager(private val context: Context) {
                 }
             } catch (e: IOException) {
                 Timber.tag(BT_MNGR_TAG).e("Connection failed: ${e.localizedMessage}")
-                stopReadingFromScale()
+                closeBtConnection()
             }
         }
     }
 
     private fun readDataFromScale(socket: BluetoothSocket) {
         Timber.tag(BT_MNGR_TAG).i("start reading data from scale::socket = $socket")
+        _isReading.value = true
 
         val inputStream: InputStream
         try {
@@ -132,8 +134,8 @@ class BtManager(private val context: Context) {
         var bytes: Int
         Timber.tag(BT_MNGR_TAG).i("inputStream = $inputStream")
         // Read data continuously in a background thread
-        readingJob = GlobalScope.launch(Dispatchers.IO) {
-            while (true) {
+        readingJob = CoroutineScope(Dispatchers.IO).launch {
+            while (isActive) {
                 try {
                     bytes = inputStream.read(buffer)
                     Timber.tag(BT_MNGR_TAG).i("Bytes in = $bytes")
@@ -175,8 +177,9 @@ class BtManager(private val context: Context) {
         return null
     }
 
-    fun stopReadingFromScale() {
+    fun closeBtConnection() {
         Timber.tag(BT_MNGR_TAG).i("Stopping scale reading")
+        _isReading.value = false
 
         readingJob?.cancel() // Cancel the reading coroutine
         readingJob = null
@@ -188,4 +191,14 @@ class BtManager(private val context: Context) {
             Timber.tag(BT_MNGR_TAG).e("Error closing socket: ${e.localizedMessage}")
         }
     }
+
+    fun stopReadingFromScale() {
+        Timber.tag(BT_MNGR_TAG).i("Stopping scale reading")
+
+        _isReading.value = false
+        // Update reading state
+        readingJob?.cancel() // Cancel the reading coroutine
+        readingJob = null
+    }
+
 }
