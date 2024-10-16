@@ -6,4 +6,13 @@
     <color name="colorPrimary">#36B46E</color>
     <color name="darkGray">#676767</color>
 
+    <color name="brownDark">#834413</color>
+    <color name="brownMid">#F69448</color>
+    <color name="brownLight">#FFFFB881</color>
+
+    <color name="navBarTransparent">#00ffffff</color>
+
+    <color name="disabled_button_color">#A0A0A0</color>
+    <color name="enabled_button_color">#2196F3</color>
+
 </resources>

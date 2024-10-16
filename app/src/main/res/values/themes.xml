@@ -6,4 +6,27 @@
     </style>
 
     <style name="Theme.BluetoothApplication" parent="Base.Theme.BluetoothApplication" />
+
+    <style name="BtAppTheme" parent="Theme.BluetoothApplication">
+        <item name="colorPrimary">@color/brownMid</item>
+        <item name="colorPrimaryDark">@color/brownDark</item>
+        <item name="colorAccent">@color/brownLight</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="windowActionModeOverlay">true</item>
+        <item name="android:actionModeBackground">@color/darkGray</item>
+        <item name="windowNoTitle">true</item>
+        <item name="windowActionBar">false</item>
+        <item name="android:navigationBarColor">@color/navBarTransparent</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
+        <item name="android:fontFamily">@/font/yatra1</item>
+        <item name="android:textSize">@dimen/text_size_x_small</item>
+    </style>
+
+    <style name="Theme.SplashTheme" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/white</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/btapp1</item>
+        <item name="windowSplashScreenAnimationDuration">0</item>
+        <item name="postSplashScreenTheme">@style/BtAppTheme</item>
+    </style>
+
 </resources>

@@ -14,8 +14,10 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.teka.bluetoothapplication.bluetooth_module.BluetoothViewModel
@@ -26,6 +28,7 @@ import com.teka.bluetoothapplication.permissions_module.PermissionManager
 import com.teka.bluetoothapplication.permissions_module.PermissionUtils
 import com.teka.bluetoothapplication.permissions_module.requiredPermissionsInitialClient
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 @AndroidEntryPoint
@@ -48,6 +51,7 @@ class MainActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
     private lateinit var deviceAdapter: DeviceAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -57,7 +61,8 @@ class MainActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-        deviceAdapter = DeviceAdapter(this, listener = this)
+
+        deviceAdapter = DeviceAdapter(context = this, listener = this)
         setupRecyclerView()
 
         setupPermissionLaunchers()
@@ -74,21 +79,21 @@ class MainActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
         }
 
         // Set up buttons and listeners using ViewBinding
-        binding.button1.setOnClickListener { enableBluetooth() }
-        binding.button2.setOnClickListener { makeDiscoverable() }
-        binding.button3.setOnClickListener { disableBluetooth() }
-        binding.button4.setOnClickListener {
+        binding.turnOnBtn.setOnClickListener { enableBluetooth() }
+        binding.discoverableBtn.setOnClickListener { makeDiscoverable() }
+        binding.turnOffBtn.setOnClickListener { disableBluetooth() }
+        binding.scanBtn.setOnClickListener {
 //            startScanningBluetoothDevices()
             getListOfPairedDevices()
         }
-        binding.button5.setOnClickListener {
+        binding.permissionBtn.setOnClickListener {
             multiplePermissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.ACCESS_COARSE_LOCATION
                 )
             )
         }
-        binding.button6.setOnClickListener {
+        binding.toScaleActivityBtn.setOnClickListener {
             val intent:Intent = Intent(this@MainActivity,ScaleActivity::class.java)
             startActivity(intent)
         }
@@ -230,6 +235,7 @@ class MainActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
     }
 
     private fun getListOfPairedDevices(){
+        deviceAdapter.clearDevices()
         val pairedDevices: MutableList<BluetoothDeviceModel>? = btViewModel.getListOfPairedBluetoothDevices()
         if (pairedDevices != null) {
             deviceAdapter.addDeviceList(pairedDevices)
@@ -275,11 +281,14 @@ class MainActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
     override fun onDeviceClicked(device: BluetoothDeviceModel) {
         Toast.makeText(this, "Clicked: ${device.name ?: "Unknown"}", Toast.LENGTH_SHORT).show()
 
-        // Create an intent to start ScaleActivity
+        lifecycleScope.launch {
+            btViewModel.saveConnectedBtDevice(device)
+            startScaleActivity()
+        }
+    }
+
+    private fun startScaleActivity() {
         val intent = Intent(this, ScaleActivity::class.java)
-        // Put the BluetoothDeviceModel into the intent
-        intent.putExtra("bluetoothDevice", device)
-        // Start ScaleActivity
         startActivity(intent)
     }
 

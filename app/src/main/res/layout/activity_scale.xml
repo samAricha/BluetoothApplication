@@ -48,12 +48,6 @@
                 android:layout_height="wrap_content"
                 android:text="Connect"
                 android:layout_marginStart="8dp" />
-            <Button
-                android:id="@+id/readBtDeviceBtn"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Read"
-                android:layout_marginStart="8dp" />
 
         </LinearLayout>
 

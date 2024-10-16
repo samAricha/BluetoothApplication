@@ -10,10 +10,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.os.BundleCompat
 import androidx.lifecycle.Observer
+import androidx.lifecycle.lifecycleScope
 import com.teka.bluetoothapplication.bluetooth_module.BluetoothService
 import com.teka.bluetoothapplication.bluetooth_module.BluetoothViewModel
 import com.teka.bluetoothapplication.databinding.ActivityScaleBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 
@@ -30,7 +32,6 @@ class ScaleActivity : AppCompatActivity(){
     private lateinit var deviceInfoTextView: TextView
     private lateinit var quantityTxtView: TextView
     private lateinit var connectButton: Button
-    private lateinit var readBtDeviceBtn: Button
     private lateinit var submitButton: Button
     private lateinit var changeButton: Button
     private lateinit var nextCanButton: Button
@@ -50,7 +51,6 @@ class ScaleActivity : AppCompatActivity(){
         deviceInfoTextView = binding.deviceInfoText
         quantityTxtView = binding.quantityTxtView
         connectButton = binding.connectButton
-        readBtDeviceBtn = binding.readBtDeviceBtn
         submitButton = binding.submit
         changeButton = binding.change
         nextCanButton = binding.nextCan
@@ -58,18 +58,9 @@ class ScaleActivity : AppCompatActivity(){
         scaleGroupRadioButtonGroup = binding.scaleGroup
 
 
-
-        // Retrieve the BluetoothDeviceModel using BundleCompat
-        bluetoothDevice = BundleCompat.getParcelable(
-            intent.extras ?: Bundle(),
-            "bluetoothDevice",
-            BluetoothDeviceModel::class.java
-        )
         Timber.tag(SA_TAG).i("BT2: ${ bluetoothDevice?.name }")
 
-        // Display device information
-        val deviceDetails = String.format("${bluetoothDevice?.name} (${bluetoothDevice?.address})")
-        deviceInfoTextView.text = deviceDetails
+
 
         setUpScreenViews()
         startBluetoothService()
@@ -79,11 +70,10 @@ class ScaleActivity : AppCompatActivity(){
     private fun observeUIState() {
         safeCollectFlow(btViewModel.uiState) { state ->
             state.connectedDevice?.let { device ->
+                bluetoothDevice = device
+                val deviceDetails = String.format("${bluetoothDevice?.name} (${bluetoothDevice?.address})")
+                deviceInfoTextView.text = deviceDetails
                 Timber.tag(SA_TAG).i("connectedDevice1 $device")
-                // Update UI with connected device information
-//                myButton.isEnabled = true
-//                myButton.text = "Disconnect ${device.name}"
-//                showToast("Connected to ${device.name}")
             } ?: run {
                 Timber.tag(SA_TAG).i("connectedDevice2 runFunction")
                 // Update UI for no connected device
@@ -94,6 +84,21 @@ class ScaleActivity : AppCompatActivity(){
             state.scaleData.let { weight ->
                 Timber.tag(SA_TAG).i("read weight: $weight")
                 quantityTxtView.text = weight
+            }
+
+            state.connectionState.let { connectionState ->
+                if(connectionState == true){
+                    connectButton.isEnabled = false
+                    connectButton.alpha = 0.5f
+                    connectButton.setTextColor(ContextCompat.getColor(this,R.color.black))
+                    connectButton.setText("connected")
+                    connectButton.setBackgroundColor(ContextCompat.getColor(this, R.color.disabled_button_color))
+                }else{
+                    connectButton.isEnabled = true
+                    connectButton.alpha = 1f
+                    connectButton.setText("Connect")
+                    connectButton.setBackgroundColor(ContextCompat.getColor(this@ScaleActivity, R.color.enabled_button_color))
+                }
             }
 
         }
@@ -120,12 +125,11 @@ class ScaleActivity : AppCompatActivity(){
 
         connectButton.setOnClickListener {
             Timber.tag(SA_TAG).i("connect btn clicked. Device: $bluetoothDevice")
-            bluetoothDevice?.let { it1 -> btViewModel.saveConnectedBtDevice(it1) }
-        }
-
-        readBtDeviceBtn.setOnClickListener {
-            Timber.tag(SA_TAG).i("read btn clicked.")
-            btViewModel.startBluetoothConnection()
+            bluetoothDevice?.let { device ->
+                lifecycleScope.launch {
+                    btViewModel.startBluetoothConnection()
+                }
+            }
         }
 
 
@@ -173,7 +177,6 @@ class ScaleActivity : AppCompatActivity(){
 
     override fun onDestroy() {
         super.onDestroy()
-        // Optionally stop Bluetooth service if needed
         stopBluetoothService()
     }
 

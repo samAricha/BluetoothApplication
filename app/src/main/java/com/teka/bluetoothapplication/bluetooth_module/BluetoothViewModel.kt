@@ -29,7 +29,7 @@ const val BT_VM_TAG = "BT_VM_TAG"
 class BluetoothViewModel @Inject constructor(
     private val applicationContext: Context,
     private val dataStoreRepository: DataStoreRepository,
-) : ViewModel(), BluetoothListener {
+) : ViewModel(){
 
     private val btManager: BtManager = BtManager(applicationContext)
     private val bluetoothAdapter =  btManager.bluetoothAdapter
@@ -39,10 +39,34 @@ class BluetoothViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(BluetoothUIState())
     val uiState: StateFlow<BluetoothUIState> = _uiState
 
+    val btDeviceConnectionState: StateFlow<Boolean> = btManager.connectionState
+
+
     init {
         observeConnectedDeviceFromDataStore()
         observeScaleData()
+        observeConnectionState()
     }
+
+
+    private val _discoveredDevices = MutableLiveData<List<BluetoothDevice>>(emptyList())
+    val discoveredDevices: LiveData<List<BluetoothDevice>> get() = _discoveredDevices
+
+    private val _pairedDevices = MutableLiveData<List<BluetoothDevice>>(emptyList())
+    val pairedDevices: LiveData<List<BluetoothDevice>> get() = _pairedDevices
+
+
+    private val _scanningForDevices = MutableLiveData(false)
+    val scanningForDevices: LiveData<Boolean> get() = _scanningForDevices
+
+    private val _selectedDevice = MutableLiveData<BluetoothDevice?>()
+    val selectedDevice: LiveData<BluetoothDevice?> get() = _selectedDevice
+
+
+    private val _connectionState = MutableLiveData<StatesOfConnection>()
+    val connectionState: LiveData<StatesOfConnection> get() = _connectionState
+
+
 
     private fun observeConnectedDeviceFromDataStore() {
         viewModelScope.launch {
@@ -61,22 +85,15 @@ class BluetoothViewModel @Inject constructor(
         }
     }
 
-    private val _discoveredDevices = MutableLiveData<List<BluetoothDevice>>(emptyList())
-    val discoveredDevices: LiveData<List<BluetoothDevice>> get() = _discoveredDevices
+    private fun observeConnectionState() {
+        viewModelScope.launch {
+            btDeviceConnectionState.collectLatest { connectionState ->
+                Timber.tag(BT_VM_TAG).i("collecting connection state: $connectionState")
+                _uiState.value = _uiState.value.copy(connectionState = connectionState)
+            }
+        }
+    }
 
-    private val _pairedDevices = MutableLiveData<List<BluetoothDevice>>(emptyList())
-    val pairedDevices: LiveData<List<BluetoothDevice>> get() = _pairedDevices
-
-
-    private val _scanningForDevices = MutableLiveData(false)
-    val scanningForDevices: LiveData<Boolean> get() = _scanningForDevices
-
-    private val _selectedDevice = MutableLiveData<BluetoothDevice?>()
-    val selectedDevice: LiveData<BluetoothDevice?> get() = _selectedDevice
-
-
-    private val _connectionState = MutableLiveData<StatesOfConnection>()
-    val connectionState: LiveData<StatesOfConnection> get() = _connectionState
 
 
 
@@ -101,14 +118,13 @@ class BluetoothViewModel @Inject constructor(
         }
     }
 
-    fun saveConnectedBtDevice(btDeviceModel: BluetoothDeviceModel) {
-        viewModelScope.launch {
+    suspend fun saveConnectedBtDevice(btDeviceModel: BluetoothDeviceModel) {
             dataStoreRepository.saveConnectedBtDevice(btDeviceModel)
-        }
     }
 
     fun stopBluetoothConnection() {
         btManager.stopReadingFromScale()
+        btManager.unregisterReceiver()
     }
 
 
@@ -166,19 +182,6 @@ class BluetoothViewModel @Inject constructor(
         val bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
         return bluetoothAdapter?.isEnabled == true
     }
-
-    override fun onDeviceFound(device: BluetoothDevice) {
-        Timber.tag(BT_VM_TAG).i("device found: $device")
-    }
-
-    override fun onDiscoveryFinished() {
-        Timber.tag(BT_VM_TAG).i("DISCOVERY FINISHED")
-    }
-
-    override fun onBluetoothDisabled() {
-        Timber.tag(BT_VM_TAG).i("BT DISABLED")
-    }
-
 
 }
 

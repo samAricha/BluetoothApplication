@@ -6,4 +6,6 @@ interface BluetoothListener {
     fun onDeviceFound(device: BluetoothDevice)
     fun onDiscoveryFinished()
     fun onBluetoothDisabled()
+    fun onDeviceConnected(device: BluetoothDevice)
+    fun onDeviceDisconnected(device: BluetoothDevice)
 }

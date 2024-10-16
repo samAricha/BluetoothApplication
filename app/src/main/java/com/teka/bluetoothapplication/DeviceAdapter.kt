@@ -16,10 +16,7 @@ class DeviceAdapter(
 ) : RecyclerView.Adapter<DeviceAdapter.DeviceHolder>() {
 
     private val inflater: LayoutInflater = LayoutInflater.from(context)
-//    private var devices: MutableList<BluetoothDevice> = mutableListOf()
-//    private val listener: DeviceListener = context as DeviceListener
 
-    // Add a new device to the list and notify the adapter
     fun addDevice(device: BluetoothDeviceModel) {
         devices.add(device)
         notifyItemInserted(devices.size - 1)
@@ -48,7 +45,7 @@ class DeviceAdapter(
     }
 
     // Clear the device list
-    fun clear() {
+    fun clearDevices() {
         devices.clear()
         notifyDataSetChanged()
     }

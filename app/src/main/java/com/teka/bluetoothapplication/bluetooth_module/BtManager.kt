@@ -1,10 +1,12 @@
 package com.teka.bluetoothapplication.bluetooth_module
 
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothSocket
 import android.content.Context
+import android.content.IntentFilter
 import androidx.lifecycle.MutableLiveData
 import com.teka.bluetoothapplication.BluetoothDeviceModel
 import com.teka.bluetoothapplication.permissions_module.myUuid
@@ -28,10 +30,65 @@ class BtManager(private val context: Context) {
     val bluetoothAdapter =  bluetoothManager.adapter
 
 
-    private val _scaleData: MutableStateFlow<String> = MutableStateFlow("0")
+    private val _scaleData: MutableStateFlow<String> = MutableStateFlow("0.0")
     val scaleData: StateFlow<String> = _scaleData
     private var readingJob: Job? = null
     private var bluetoothSocket: BluetoothSocket? = null
+
+
+    private val _connectionState: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    val connectionState: StateFlow<Boolean> = _connectionState
+
+    private var btBroadcastReceiver: BtBroadcastReceiver? = null
+
+    init {
+        registerReceiver()
+    }
+
+    private fun registerReceiver() {
+        btBroadcastReceiver = BtBroadcastReceiver(object : BluetoothListener {
+            @SuppressLint("MissingPermission")
+            override fun onDeviceFound(device: BluetoothDevice) {
+                Timber.tag(BT_MNGR_TAG).i("Device: ${device.name} found")
+
+            }
+
+            override fun onDiscoveryFinished() {
+                Timber.tag(BT_MNGR_TAG).i("BT discovery finished")
+
+            }
+
+            override fun onBluetoothDisabled() {
+                Timber.tag(BT_MNGR_TAG).i("BT disabled")
+            }
+
+            override fun onDeviceConnected(device: BluetoothDevice) {
+                Timber.tag(BT_MNGR_TAG).i("BT device connected")
+                _connectionState.value = true
+            }
+
+            @SuppressLint("MissingPermission")
+            override fun onDeviceDisconnected(device: BluetoothDevice) {
+                Timber.tag(BT_MNGR_TAG).i("Device disconnected: ${device.name}")
+                // Emit false for connection state
+                _connectionState.value = false
+            }
+        })
+
+        val filter = IntentFilter().apply {
+            addAction(BluetoothDevice.ACTION_FOUND)
+            addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
+            addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
+            addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+            addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
+        }
+        context.registerReceiver(btBroadcastReceiver, filter)
+    }
+
+    fun unregisterReceiver() {
+        btBroadcastReceiver?.let { context.unregisterReceiver(it) }
+    }
+
 
 
     @SuppressLint("MissingPermission")
@@ -44,6 +101,7 @@ class BtManager(private val context: Context) {
         val device = bluetoothAdapter.getRemoteDevice(btDevice.address)
         Timber.tag(BT_MNGR_TAG).i("actual device connection: $device")
         readingJob = CoroutineScope(Dispatchers.IO).launch {
+
             try {
                 device?.let {
                     bluetoothSocket = it.createRfcommSocketToServiceRecord(myUuid)
