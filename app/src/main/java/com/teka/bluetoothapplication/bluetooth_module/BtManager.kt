@@ -3,7 +3,11 @@ package com.teka.bluetoothapplication.bluetooth_module
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.content.IntentFilter
@@ -11,13 +15,17 @@ import com.teka.bluetoothapplication.permissions_module.myUuid
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import timber.log.Timber
 import java.io.IOException
 import java.io.InputStream
+import java.net.SocketTimeoutException
 
 const val BT_MNGR_TAG = "BT_MNGR_TAG"
 
@@ -35,6 +43,8 @@ class BtManager(private val context: Context) {
     val isReading: StateFlow<Boolean> = _isReading
 
     private var bluetoothSocket: BluetoothSocket? = null
+    // Add GATT-related variables for BLE
+    private var bluetoothGatt: BluetoothGatt? = null
 
 
     private val _connectionState: MutableStateFlow<Boolean> = MutableStateFlow(false)
@@ -101,8 +111,26 @@ class BtManager(private val context: Context) {
         }
         val device = bluetoothAdapter.getRemoteDevice(btDevice.address)
         Timber.tag(BT_MNGR_TAG).i("actual device connection: $device")
-        readingJob = CoroutineScope(Dispatchers.IO).launch {
 
+        when (device.type) {
+            BluetoothDevice.DEVICE_TYPE_LE -> {
+                Timber.tag(BT_MNGR_TAG).i("BTDEVICE:: BLE")
+//                connectToBleDevice(device)
+            }
+            BluetoothDevice.DEVICE_TYPE_CLASSIC -> {
+                Timber.tag(BT_MNGR_TAG).i("BTDEVICE:: CLASSIC")
+                connectToClassicDevice(device)
+            }
+            else -> {
+                Timber.tag(BT_MNGR_TAG).e("Unknown device type  ${device.type}")
+                connectToClassicDevice(device)
+            }
+        }
+
+
+
+        /*
+        readingJob = CoroutineScope(Dispatchers.IO).launch {
             try {
                 device?.let {
                     bluetoothSocket = it.createRfcommSocketToServiceRecord(myUuid)
@@ -116,54 +144,96 @@ class BtManager(private val context: Context) {
                 closeBtConnection()
             }
         }
+        */
+
     }
+
+    @SuppressLint("MissingPermission")
+    private fun connectToClassicDevice(device: BluetoothDevice) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                bluetoothSocket = device.createRfcommSocketToServiceRecord(myUuid)
+                bluetoothSocket?.connect()
+                bluetoothSocket?.let { socket ->
+                    readDataFromScale(socket)
+                }
+            } catch (e: IOException) {
+                Timber.tag(BT_MNGR_TAG).e("Connection failed: ${e.localizedMessage}")
+                closeBtConnection()
+            }
+        }
+    }
+
+
+
+
+
 
     private fun readDataFromScale(socket: BluetoothSocket) {
         Timber.tag(BT_MNGR_TAG).i("start reading data from scale::socket = $socket")
         _isReading.value = true
 
+        val buffer = ByteArray(1024)
+        var bytes: Int
         val inputStream: InputStream
+
         try {
             inputStream = socket.inputStream
+            Timber.tag(BT_MNGR_TAG).i("inside socket bytes try/catch 1:: inputStream -> $inputStream")
         } catch (e: IOException) {
             Timber.tag(BT_MNGR_TAG).e("Error getting input stream: ${e.localizedMessage}")
             return
         }
 
-        val buffer = ByteArray(1024)
-        var bytes: Int
+
+
         Timber.tag(BT_MNGR_TAG).i("inputStream = $inputStream")
-        // Read data continuously in a background thread
+        // Read data continuously in a I/0 thread
         readingJob = CoroutineScope(Dispatchers.IO).launch {
             while (isActive) {
-                try {
-                    bytes = inputStream.read(buffer)
-                    Timber.tag(BT_MNGR_TAG).i("Bytes in = $bytes")
-                    // Convert the byte array to a string, handling only valid parts
-                    val data = String(buffer, 0, bytes).trim()
-                    Timber.tag(BT_MNGR_TAG).i("data in = $data")
+                if (socket.isConnected) {
+                    Timber.tag(BT_MNGR_TAG).i("Socket is still connected")
+                    try {
+                        Timber.tag(BT_MNGR_TAG).i("Trying to read data from input stream ...")
+                        bytes = withTimeout(2000) { // Timeout after 2 seconds if no data
+                            inputStream.read(buffer)
+                        }
+                        if (bytes > 0) {
+                            val data = String(buffer, 0, bytes).trim()
+                            Timber.tag(BT_MNGR_TAG).i("data in = $data")
+                            val cleanedData = data.filter { it.isDigit() || it == '.' }
+                            if (cleanedData.isNotEmpty()) {
+                                Timber.tag(BT_MNGR_TAG).i("Valid data: $cleanedData")
+                                _scaleData.value = cleanedData
+                                Timber.tag(BT_MNGR_TAG).i("Scale data: ${scaleData.value}")
+                            } else {
+                                Timber.tag(BT_MNGR_TAG).i("No valid data received")
+                            }
+                        } else {
+                            Timber.tag(BT_MNGR_TAG).i("Read 0 bytes, retrying...")
+                            delay(500)
+                        }
 
-                    // Filter out non-numeric characters (except for decimal points)
-                    val cleanedData = data.filter { it.isDigit() || it == '.' }
 
-                    // Check if the cleaned data looks like a valid weight
-                    if (cleanedData.isNotEmpty()) {
-                        Timber.tag(BT_MNGR_TAG).i("Valid data: $cleanedData")
-                        _scaleData.value = cleanedData
-                        Timber.tag(BT_MNGR_TAG).i("Scale data: ${scaleData.value}")
-                    } else {
-                        Timber.tag(BT_MNGR_TAG).i("No valid data received")
+                    }catch (e: TimeoutCancellationException) {
+                        Timber.tag(BT_MNGR_TAG).i("Read operation timed out; trying again")
+                    } catch (e: Exception){
+                        Timber.tag(BT_MNGR_TAG).e("reading bytes exception: ${e.localizedMessage}")
+                        Timber.tag(BT_MNGR_TAG).i("reading data error: ${ e.localizedMessage }")
+                        e.printStackTrace()
+                        socket.close()
                     }
 
 
-
-                } catch (e: IOException) {
-                    Timber.tag(BT_MNGR_TAG).i("reading data error: ${ e.localizedMessage }")
-                    e.printStackTrace()
-                    socket.close()
+                } else {
+                    Timber.tag(BT_MNGR_TAG).i("Socket disconnected or closed")
+                    closeBtConnection()
+                    break // Exit the loop if the connection is lost
                 }
+
             }
         }
+
     }
 
     @SuppressLint("MissingPermission")
@@ -177,16 +247,21 @@ class BtManager(private val context: Context) {
         return null
     }
 
+    @SuppressLint("MissingPermission")
     fun closeBtConnection() {
         Timber.tag(BT_MNGR_TAG).i("Stopping scale reading")
         _isReading.value = false
-
-        readingJob?.cancel() // Cancel the reading coroutine
+        readingJob?.cancel()
         readingJob = null
 
         try {
+            // Close Bluetooth Classic connection
             bluetoothSocket?.close() // Close Bluetooth connection
             bluetoothSocket = null
+            // Close BLE connection
+            bluetoothGatt?.close()
+            bluetoothGatt = null
+
         } catch (e: IOException) {
             Timber.tag(BT_MNGR_TAG).e("Error closing socket: ${e.localizedMessage}")
         }
@@ -194,10 +269,8 @@ class BtManager(private val context: Context) {
 
     fun stopReadingFromScale() {
         Timber.tag(BT_MNGR_TAG).i("Stopping scale reading")
-
         _isReading.value = false
-        // Update reading state
-        readingJob?.cancel() // Cancel the reading coroutine
+        readingJob?.cancel()
         readingJob = null
     }
 
