@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 import java.io.IOException
@@ -200,12 +201,9 @@ class BtManager(private val context: Context) {
         Timber.tag(BT_MNGR_TAG).i("Starting Client Mode")
         var clientSocket: BluetoothSocket? = null
         try {
-            // Create a Bluetooth socket to the target device (scale)
             clientSocket = device.createRfcommSocketToServiceRecord(myUuid)
-            // Connect to the server (scale)
             clientSocket.connect()
             Timber.tag(BT_MNGR_TAG).i("Connected to server: $clientSocket")
-            // Start the continuous sending of 'R' command and listen for data
             startContinuousDataStream(clientSocket)
         } catch (e: IOException) {
             Timber.tag(BT_MNGR_TAG).e("Error in client socket: ${e.localizedMessage}")
@@ -225,15 +223,10 @@ class BtManager(private val context: Context) {
                     val cmd = byteArrayOf(82)
                     outStream.write(cmd)
                     outStream.flush()
-
                     Timber.tag(BT_MNGR_TAG).i("Sent 'R' command to scale")
-
                     // Wait for a short period before sending again
-                    Thread.sleep(1000) // Send every 1 second (adjust as needed)
-
-                    // Listen for the response data from the scale
+                    Thread.sleep(1000)
                     listenForData(inStream)
-
                 }
             } catch (e: IOException) {
                 Timber.tag(BT_MNGR_TAG).e("Error while sending/receiving data: ${e.localizedMessage}")
@@ -266,88 +259,19 @@ class BtManager(private val context: Context) {
         Timber.tag(BT_MNGR_TAG).i("Processing weight data: $data")
         val weight = extractWeightFromData(data)
         Timber.tag(BT_MNGR_TAG).i("Weight extracted: $weight")
+        _scaleData.value = weight
     }
 
     private fun extractWeightFromData(data: String): String {
-        return data.filter { it.isDigit() || it == '.' }
+        // Regular expression to match the weight value (e.g., "0.41", "12.34")
+        val regex = """\d+(\.\d+)?""".toRegex()
+
+        // Find the first match of the weight pattern in the data
+        val match = regex.find(data)
+
+        // Return the matched weight, or a default value if no match is found
+        return match?.value ?: "0.00"
     }
-
-
-    private fun readDataFromScale2(socket: BluetoothSocket) {
-        Timber.tag(BT_MNGR_TAG).i("Start reading data from scale: socket = $socket")
-        _isReading.value = true
-
-        // Read data continuously in an I/O thread
-        readingJob = CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val inputStream: InputStream = socket.inputStream
-                val buffer = ByteArray(1024)
-
-                Timber.tag(BT_MNGR_TAG).i("InputStream initialized: $inputStream")
-                if (inputStream.available() > 0) {
-                    while (isActive && socket.isConnected) {
-                        try {
-                            // Check if data is available with timeout
-                            val bytesRead = withTimeoutOrNull(2000) {
-                                inputStream.read(buffer)
-                            }
-
-                            if (bytesRead != null && bytesRead > 0) {
-                                val rawData = String(buffer, 0, bytesRead).trim()
-                                Timber.tag(BT_MNGR_TAG).i("Raw data received: $rawData")
-
-                                val cleanedData = rawData.filter { it.isDigit() || it == '.' }
-                                if (cleanedData.isNotEmpty()) {
-                                    Timber.tag(BT_MNGR_TAG).i("Valid data: $cleanedData")
-                                    _scaleData.value = cleanedData
-                                } else {
-                                    Timber.tag(BT_MNGR_TAG)
-                                        .i("No valid data in the received payload")
-                                }
-                            } else {
-                                Timber.tag(BT_MNGR_TAG).i("No data read; retrying...")
-                                delay(500)
-                            }
-
-                        } catch (e: TimeoutCancellationException) {
-                            Timber.tag(BT_MNGR_TAG).w("Timeout while reading data; retrying...")
-                        } catch (e: IOException) {
-                            Timber.tag(BT_MNGR_TAG)
-                                .e("Error reading input stream: ${e.localizedMessage}")
-                            break
-                        } catch (e: Exception) {
-                            Timber.tag(BT_MNGR_TAG).e("Unexpected error: ${e.localizedMessage}")
-                            break
-                        }
-                    }
-                    if (socket.isConnected) {
-                        Timber.tag(BT_MNGR_TAG).i("Socket is still connected")
-                    } else {
-                        Timber.tag(BT_MNGR_TAG).e("Socket was unexpectedly disconnected")
-                    }
-                } else {
-                    Timber.tag(BT_MNGR_TAG).i("No data available in input stream; waiting...")
-                    delay(500) // Wait before retrying
-                }
-            } catch (e: IOException) {
-                Timber.tag(BT_MNGR_TAG).e("Error initializing input stream: ${e.localizedMessage}")
-            } catch (e: TimeoutCancellationException) {
-                Timber.tag(BT_MNGR_TAG).e("TimeoutCancellationException caught: ${e.localizedMessage}")
-            } catch (e: Exception){
-                Timber.tag(BT_MNGR_TAG).e("Try Exception: ${e.localizedMessage}")
-            } catch (e: CancellationException) {
-                Timber.tag(BT_MNGR_TAG).e("Coroutine was canceled: ${e.localizedMessage}")
-            } finally {
-//                _isReading.value = false
-                Timber.tag(BT_MNGR_TAG).e("Closing BT connection ...:")
-//                closeBtConnection()
-            }
-        }
-    }
-
-
-
-
 
 
 
@@ -383,52 +307,36 @@ class BtManager(private val context: Context) {
                         try {
                             Timber.tag(BT_MNGR_TAG).i("Trying to read data from input stream ...")
                             Timber.tag(BT_MNGR_TAG).i("inputStream $inputStream ...")
-
-
-
                             try {
                                 Timber.tag(BT_MNGR_TAG)
                                     .i("buffer content: ${buffer.joinToString()}")
                                 val availableBytes = inputStream.available()
                                 Timber.tag(BT_MNGR_TAG).i("Available bytes: $availableBytes")
-//                            if (availableBytes > 0) {
-//                                val bytes = withTimeout(2000) { // Timeout after 2 seconds if no data
-//                                    inputStream.read(buffer)
-//                                }
-//
-//                                Timber.tag(BT_MNGR_TAG).i("BytesReading: $bytes")
-//                            }
-//                            Timber.tag(BT_MNGR_TAG).i("inputStreamRead ${inputStream.read(buffer)}")
                             } catch (e: Exception) {
                                 Timber.tag(BT_MNGR_TAG).e("read exception: ${e.localizedMessage}")
                                 Timber.tag(BT_MNGR_TAG).e("Exception stack trace $e")
                             }
 
-                            /*
-                        bytes = withTimeout(2000) { // Timeout after 2 seconds if no data
-                            inputStream.read(buffer)
-                        }
-
-
-                        Timber.tag(BT_MNGR_TAG).i("Bytes: $bytes")
-                        if (bytes > 0) {
-                            val data = String(buffer, 0, bytes).trim()
-                            Timber.tag(BT_MNGR_TAG).i("data in = $data")
-                            val cleanedData = data.filter { it.isDigit() || it == '.' }
-                            if (cleanedData.isNotEmpty()) {
-                                Timber.tag(BT_MNGR_TAG).i("Valid data: $cleanedData")
-                                _scaleData.value = cleanedData
-                                Timber.tag(BT_MNGR_TAG).i("Scale data: ${scaleData.value}")
-                            } else {
-                                Timber.tag(BT_MNGR_TAG).i("No valid data received")
+                            bytes = withTimeout(2000) { // Timeout after 2 seconds if no data
+                                inputStream.read(buffer)
                             }
-                        } else {
-                            Timber.tag(BT_MNGR_TAG).i("Read 0 bytes, retrying...")
-                            delay(500)
-                        }
 
-
-                         */
+                            Timber.tag(BT_MNGR_TAG).i("Bytes: $bytes")
+                            if (bytes > 0) {
+                                val data = String(buffer, 0, bytes).trim()
+                                Timber.tag(BT_MNGR_TAG).i("data in = $data")
+                                val cleanedData = data.filter { it.isDigit() || it == '.' }
+                                if (cleanedData.isNotEmpty()) {
+                                    Timber.tag(BT_MNGR_TAG).i("Valid data: $cleanedData")
+                                    _scaleData.value = cleanedData
+                                    Timber.tag(BT_MNGR_TAG).i("Scale data: ${scaleData.value}")
+                                } else {
+                                    Timber.tag(BT_MNGR_TAG).i("No valid data received")
+                                }
+                            } else {
+                                Timber.tag(BT_MNGR_TAG).i("Read 0 bytes, retrying...")
+                                delay(500)
+                            }
 
 
                         } catch (e: TimeoutCancellationException) {
