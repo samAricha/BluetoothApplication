@@ -10,6 +10,8 @@ import android.content.Context
 import timber.log.Timber
 
 @SuppressLint("MissingPermission")
+private const val BLE_TAG = "BLE_TAG"
+
 
 class BLEconnection(private val context: Context) {
     private var bluetoothGatt: BluetoothGatt? = null
@@ -25,12 +27,12 @@ class BLEconnection(private val context: Context) {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             when (newState) {
                 BluetoothProfile.STATE_CONNECTED -> {
-                    Timber.tag(BT_MNGR_TAG).i("Connected to BLE device")
+                    Timber.tag(BLE_TAG).i("Connected to BLE device")
                     bluetoothGatt?.discoverServices() // Discover services
                 }
 
                 BluetoothProfile.STATE_DISCONNECTED -> {
-                    Timber.tag(BT_MNGR_TAG).i("Disconnected from BLE device")
+                    Timber.tag(BLE_TAG).i("Disconnected from BLE device")
 //                    closeBtConnection()
                 }
             }
@@ -52,7 +54,7 @@ class BLEconnection(private val context: Context) {
                 val data = characteristic.value
                 val cleanedData = String(data).filter { it.isDigit() || it == '.' }
 //                _scaleData.value = cleanedData
-                Timber.tag(BT_MNGR_TAG).i("Scale data: $cleanedData")
+                Timber.tag(BLE_TAG).i("Scale data: $cleanedData")
             }
         }
     }
@@ -60,18 +62,18 @@ class BLEconnection(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     fun connectToBleDeviceGatt(device: BluetoothDevice) {
-        Timber.tag(BT_MNGR_TAG).i("Connecting to BLE device: ${device.name}")
+        Timber.tag(BLE_TAG).i("Connecting to BLE device: ${device.name}")
 
         bluetoothGatt = device.connectGatt(context, false, object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
                 when (newState) {
                     BluetoothProfile.STATE_CONNECTED -> {
-                        Timber.tag(BT_MNGR_TAG).i("Connected to GATT server.")
+                        Timber.tag(BLE_TAG).i("Connected to GATT server.")
                         // Discover services after successful connection.
                         gatt.discoverServices()
                     }
                     BluetoothProfile.STATE_DISCONNECTED -> {
-                        Timber.tag(BT_MNGR_TAG).i("Disconnected from GATT server.")
+                        Timber.tag(BLE_TAG).i("Disconnected from GATT server.")
                         bluetoothGatt?.close()
                     }
                 }
@@ -80,9 +82,9 @@ class BLEconnection(private val context: Context) {
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     // Services discovered successfully, you can read/write characteristics here
-                    Timber.tag(BT_MNGR_TAG).i("Services discovered: ${gatt.services}")
+                    Timber.tag(BLE_TAG).i("Services discovered: ${gatt.services}")
                 } else {
-                    Timber.tag(BT_MNGR_TAG).e("Failed to discover services.")
+                    Timber.tag(BLE_TAG).e("Failed to discover services.")
                 }
             }
         })
