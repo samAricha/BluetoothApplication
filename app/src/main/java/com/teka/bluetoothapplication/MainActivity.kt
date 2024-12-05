@@ -102,12 +102,8 @@ class MainActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
     // Add mock Bluetooth devices to the adapter
     private fun addMockDevices() {
         val mockDevice1 = BtDeviceModel("Mock Device 1", "00:11:22:33:44:55")
-//        val mockDevice2 = BluetoothDeviceModel("Device 2", "AA:BB:CC:DD:EE:FF")
-//        val mockDevice3 = BluetoothDeviceModel("Device 3", "11:22:33:44:55:66")
 
         deviceAdapter.addDevice(mockDevice1)
-//        deviceAdapter.addDevice(mockDevice2)
-//        deviceAdapter.addDevice(mockDevice3)
     }
 
 
@@ -197,10 +193,10 @@ class MainActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
             ActivityResultContracts.RequestPermission()
         ) { isGranted: Boolean ->
             if (isGranted) {
-                Timber.tag("MA::initializePermissionLaunchers").i("Permission Granted")
+                Timber.tag("MA::initPermLaunchers").i("Permission Granted")
             } else {
                 // Permission denied: Show a message
-                Timber.tag("MA::initializePermissionLaunchers").i("Permission Denied")
+                Timber.tag("MA::initPermLaunchers").i("Permission Denied")
                 showPermissionDeniedMessage()
             }
         }
@@ -232,26 +228,6 @@ class MainActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
         ).show()
     }
 
-    private fun getListOfPairedDevices(){
-        deviceAdapter.clearDevices()
-        val pairedDevices: MutableList<BtDeviceModel>? = btViewModel.getListOfPairedBluetoothDevices()
-        if (pairedDevices != null) {
-            deviceAdapter.addDeviceList(pairedDevices)
-        }
-    }
-
-    private fun startScanningBluetoothDevices() {
-        PermissionUtils.requestPermissionAndExecuteAction(
-            onExecutionPermissionLauncher,
-            Manifest.permission.BLUETOOTH,
-            this,
-            {
-                Toast.makeText(this, "Scanning for Bluetooth devices...", Toast.LENGTH_SHORT).show()
-            }
-        )
-    }
-
-
     private fun handlePermissionResults(permissions: Map<String, Boolean>) {
         val allPermissionsGranted = permissions.all { it.value }
 
@@ -275,6 +251,29 @@ class MainActivity : AppCompatActivity(), DeviceAdapter.DeviceListener {
             }
         }
     }
+
+
+
+    private fun getListOfPairedDevices(){
+        deviceAdapter.clearDevices()
+        val pairedDevices: MutableList<BtDeviceModel>? = btViewModel.getListOfPairedBluetoothDevices()
+        if (pairedDevices != null) {
+            deviceAdapter.addDeviceList(pairedDevices)
+        }
+    }
+
+    private fun startScanningBluetoothDevices() {
+        PermissionUtils.requestPermissionAndExecuteAction(
+            onExecutionPermissionLauncher,
+            Manifest.permission.BLUETOOTH,
+            this,
+            {
+                Toast.makeText(this, "Scanning for Bluetooth devices...", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+
 
     override fun onDeviceClicked(device: BtDeviceModel) {
         Toast.makeText(this, "Clicked: ${device.name ?: "Unknown"}", Toast.LENGTH_SHORT).show()
